@@ -1,18 +1,16 @@
+// config.h
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// CoAP Cloud server endpoint
 #define CLOUD_SERVER_EP "coap://[fd00::1]:5683"
-
-// CoAP registration resource path
-#define REGISTRATION_RESOURCE_PATH "registrationSensor"
-
-// Registration settings
+#define REGISTRATION_RESOURCE_PATH "register"
+#define REGISTRATION_ACK_CODE CONTENT_2_05
 #define MAX_REGISTRATION_RETRY 3
 #define REGISTRATION_WAIT_SECONDS 5
-#define REGISTRATION_ACK_CODE 65 // 2.01 Created
+#define OBS_TEMP_URI "coap://[fd00::100]:5683/predictionTemp"
+#define OBS_HUM_URI  "coap://[fd00::101]:5683/predictionHum"
 
-// Sample interval for sensors/actuators
-#define SENSOR_SAMPLE_INTERVAL 10
+#define DEFAULT_THRESHOLD_MIN 20.0
+#define DEFAULT_THRESHOLD_MAX 28.0
 
 #endif // CONFIG_H

@@ -1,4 +1,3 @@
-// config.h
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -7,5 +6,11 @@
 #define STD_TEMPERATURE 1.85
 #define MAX_STEP 0.50
 #define BUFFER_SIZE 60
+
+#define CLOUD_SERVER_EP "coap://[fd00::1]:5683"
+#define REGISTRATION_RESOURCE_PATH "register"
+#define REGISTRATION_ACK_CODE CONTENT_2_05
+#define MAX_REGISTRATION_RETRY 3
+#define REGISTRATION_WAIT_SECONDS 5
 
 #endif // CONFIG_H
