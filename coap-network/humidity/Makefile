@@ -1,4 +1,4 @@
-CONTIKI_PROJECT = smart-thermometer-flat
+CONTIKI_PROJECT = main
 all: $(CONTIKI_PROJECT)
 
 PROJECT_SOURCEFILES += \

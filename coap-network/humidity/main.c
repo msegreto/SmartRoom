@@ -38,6 +38,10 @@ static void client_chunk_handler(coap_message_t *response) {
     return;
   }
   int len = coap_get_payload(response, &chunk);
+  if (len <= 0 || chunk == NULL) {
+    LOG_WARN("[Humidity] Empty or invalid payload received\n");
+    return;
+  }
   char payload[len + 1];
   memcpy(payload, chunk, len);
   payload[len] = '\0';
@@ -61,6 +65,12 @@ PROCESS_THREAD(humidity_process, ev, data) {
 
   coap_engine_init();
 
+  // Wait for network to be established before attempting registration
+  LOG_INFO("[Humidity] Waiting for network establishment...\n");
+  etimer_set(&timer, CLOCK_SECOND * 10); // Wait 10 seconds for network
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+  LOG_INFO("[Humidity] Network wait complete, starting registration\n");
+
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
   registered = 0;
   retry = 0;
@@ -75,12 +85,17 @@ PROCESS_THREAD(humidity_process, ev, data) {
       PROCESS_EXIT();
     }
 
-    cJSON_AddStringToObject(root, "s", "smart_humidity");
+    cJSON_AddStringToObject(root, "s", "humid");
     cJSON *resources = cJSON_CreateArray();
-    cJSON_AddItemToArray(resources, cJSON_CreateString("latestHum"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("predictionHum"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("sensorHum/on"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("sensorHum/off"));
+    if(resources == NULL) {
+      LOG_ERR("[Humidity] Failed to create JSON array\n");
+      cJSON_Delete(root);
+      PROCESS_EXIT();
+    }
+    cJSON_AddItemToArray(resources, cJSON_CreateString("hum"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("pred"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("on"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("off"));
     cJSON_AddItemToObject(root, "ss", resources);
     cJSON_AddNumberToObject(root, "t", SENSING_PERIOD_SECONDS);
 
@@ -92,6 +107,7 @@ PROCESS_THREAD(humidity_process, ev, data) {
       PROCESS_EXIT();
     }
 
+    LOG_INFO("[Humidity] JSON payload (len=%zu): %s\n", strlen(payload), payload);
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
     LOG_INFO("[Humidity] Sending registration request...\n");
 

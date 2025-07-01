@@ -16,7 +16,7 @@
 #define CLOUD_SERVER_EP "coap://[fd00::1]:5683"
 #define REGISTRATION_RESOURCE_PATH "registration"
 #define MAX_REGISTRATION_RETRY 5
-#define REGISTRATION_ACK_CODE CONTENT_2_05
+#define REGISTRATION_ACK_CODE CREATED_2_01
 #define REGISTRATION_WAIT_SECONDS 5
 #define SENSOR_SAMPLE_INTERVAL 30
 
@@ -58,9 +58,17 @@ PROCESS_THREAD(light_sensor_main_process, ev, data)
   static coap_endpoint_t server_ep;
   static coap_message_t request[1];
 
+  static struct etimer registration_timer;
+
   PROCESS_BEGIN();
 
   coap_engine_init();
+
+  // Wait for network to be established before attempting registration
+  LOG_INFO("[LightSensor] Waiting for network establishment...\n");
+  etimer_set(&registration_timer, CLOCK_SECOND * 10); // Wait 10 seconds for network
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&registration_timer));
+  LOG_INFO("[LightSensor] Network wait complete, starting registration\n");
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
 
