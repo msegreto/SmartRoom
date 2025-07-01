@@ -18,6 +18,7 @@ CFLAGS += -I./coap
 
 PROJECTDIRS += sensor coap
 
+MODULES_REL+= ../cJSON-master
 MODULES_REL+=/home/iot_ubuntu_intel/.local/lib/python3.10/site-packages/emlearn
 TARGET_LIBFILES+=-lm
 INC+=/home/iot_ubuntu_intel/.local/lib/python3.10/site-packages/emlearn

@@ -5,7 +5,7 @@
 #include "sys/log.h"
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
-#include "cJSON.h"
+#include "../cJSON-master/cJSON.h"
 #include "coap/res_latest.h"
 #include "coap/res_prediction.h"
 #include "sensor/sensing.h"
@@ -17,6 +17,7 @@
 
 #define LOG_MODULE "SmartThermometer"
 #define LOG_LEVEL LOG_LEVEL_APP
+
 PROCESS(thermometer_process, "Smart Thermometer");
 AUTOSTART_PROCESSES(&thermometer_process);
 
@@ -29,7 +30,6 @@ void trigger_prediction_event();
 void trigger_latest_event();
 
 static int registered = 0;
-static int registration_retry_count = 0;
 
 static void client_chunk_handler(coap_message_t *response) {
   const uint8_t *chunk;
@@ -51,20 +51,29 @@ static void client_chunk_handler(coap_message_t *response) {
   }
 }
 
-static void register_to_cloud() {
+PROCESS_THREAD(thermometer_process, ev, data) {
+  static struct etimer timer;
   static coap_endpoint_t server_ep;
   static coap_message_t request[1];
+  static int retry;
 
+  PROCESS_BEGIN();
+
+  coap_engine_init();
+
+  // Registrazione diretta nel protothread
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
+  registered = 0;
+  retry = 0;
 
-  while (registration_retry_count < MAX_REGISTRATION_RETRY && registered == 0) {
+  while(retry < MAX_REGISTRATION_RETRY && !registered) {
     coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
     coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);
 
     cJSON *root = cJSON_CreateObject();
-    if (root == NULL) {
+    if(root == NULL) {
       LOG_ERR("[Thermometer] Failed to create JSON object\n");
-      return;
+      PROCESS_EXIT();
     }
 
     cJSON_AddStringToObject(root, "s", "smart_thermometer");
@@ -79,9 +88,9 @@ static void register_to_cloud() {
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
-    if (payload == NULL) {
+    if(payload == NULL) {
       LOG_ERR("[Thermometer] Failed to create payload\n");
-      return;
+      PROCESS_EXIT();
     }
 
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
@@ -90,50 +99,43 @@ static void register_to_cloud() {
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
     free(payload);
 
-    if (!registered) {
-      registration_retry_count++;
-      clock_wait(CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
-    }
-  }
-
-  if (!registered) {
-    LOG_WARN("[Thermometer] Max registration attempts reached\n");
-  }
-}
-
-PROCESS_THREAD(thermometer_process, ev, data) {
-  static struct etimer timer;
-  PROCESS_BEGIN();
-
-  coap_engine_init();
-  register_to_cloud();
-
-  if (registered) {
-    coap_activate_resource(&res_latest, "latest");
-    coap_activate_resource(&res_prediction, "prediction");
-    coap_activate_resource(&res_on, "sensor/on");
-    coap_activate_resource(&res_off, "sensor/off");
-
-    sensor_on();
-    etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
-
-    while(1) {
+    if(!registered) {
+      retry++;
+      etimer_set(&timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-
-      if (sensor_is_active()) {
-        float temp = generate_random_temperature();
-        LOG_INFO("Generated temperature: %.2f\n", temp);
-        update_buffer(temp);
-        trigger_latest_event();
-
-        if (buffer_is_full()) {
-          LOG_INFO("Buffer is full, triggering prediction event.\n");
-          trigger_prediction_event();
-        }
-      }
-
-      etimer_reset(&timer);
     }
+  }
+
+  if(!registered) {
+    LOG_WARN("[Thermometer] Max registration attempts reached\n");
+    PROCESS_EXIT();
+  }
+
+  // Attiva risorse e avvia sensing
+  coap_activate_resource(&res_latest, "latest");
+  coap_activate_resource(&res_prediction, "prediction");
+  coap_activate_resource(&res_on, "sensor/on");
+  coap_activate_resource(&res_off, "sensor/off");
+
+  sensor_on();
+  etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
+
+  while(1) {
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+
+    if(sensor_is_active()) {
+      float temp = generate_random_temperature();
+      LOG_INFO("Generated temperature: %.2f\n", temp);
+      update_buffer(temp);
+      trigger_latest_event();
+
+      if(buffer_is_full()) {
+        LOG_INFO("Buffer is full, triggering prediction event.\n");
+        trigger_prediction_event();
+      }
+    }
+
+    etimer_reset(&timer);
   }
 
   PROCESS_END();

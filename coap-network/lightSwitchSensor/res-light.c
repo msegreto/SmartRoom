@@ -1,7 +1,4 @@
-#include "coap-engine.h"
-#include "light-sensor.h"
-#include <string.h>
-#include <stdio.h>
+#include "res-light.h"
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset);

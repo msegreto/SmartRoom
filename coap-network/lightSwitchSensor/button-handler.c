@@ -2,6 +2,12 @@
 #include "button-hal.h"
 #include "coap-engine.h"
 #include "light-sensor.h"
+#include "dev/button-sensor.h"
+#define BUTTON_SENSOR &button_sensor
+
+extern coap_resource_t res_light;
+
+
 #include <stdio.h>
 
 PROCESS(button_process, "Button Handler");
@@ -16,7 +22,7 @@ PROCESS_THREAD(button_process, ev, data)
 
   while(1) {
     PROCESS_YIELD();
-    if(ev == sensors_event && data == &button_hal_sensor) {
+    if(ev == sensors_event && data == BUTTON_SENSOR) {
       etimer_set(&debounce_timer, CLOCK_SECOND / 2);
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&debounce_timer));
 

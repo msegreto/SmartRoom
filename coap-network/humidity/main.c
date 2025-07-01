@@ -5,7 +5,7 @@
 #include "sys/log.h"
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
-#include "cJSON.h"
+#include "../cJSON-master/cJSON.h"
 #include "coap/res_latest.h"
 #include "coap/res_prediction.h"
 #include "sensor/sensing.h"
@@ -17,6 +17,7 @@
 
 #define LOG_MODULE "SmartHumidity"
 #define LOG_LEVEL LOG_LEVEL_APP
+
 PROCESS(humidity_process, "Smart Humidity");
 AUTOSTART_PROCESSES(&humidity_process);
 
@@ -29,7 +30,6 @@ void trigger_prediction_event();
 void trigger_latest_event();
 
 static int registered = 0;
-static int registration_retry_count = 0;
 
 static void client_chunk_handler(coap_message_t *response) {
   const uint8_t *chunk;
@@ -51,37 +51,45 @@ static void client_chunk_handler(coap_message_t *response) {
   }
 }
 
-static void register_to_cloud() {
+PROCESS_THREAD(humidity_process, ev, data) {
+  static struct etimer timer;
   static coap_endpoint_t server_ep;
   static coap_message_t request[1];
+  static int retry;
+
+  PROCESS_BEGIN();
+
+  coap_engine_init();
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
+  registered = 0;
+  retry = 0;
 
-  while (registration_retry_count < MAX_REGISTRATION_RETRY && registered == 0) {
+  while(retry < MAX_REGISTRATION_RETRY && !registered) {
     coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
     coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);
 
     cJSON *root = cJSON_CreateObject();
-    if (root == NULL) {
+    if(root == NULL) {
       LOG_ERR("[Humidity] Failed to create JSON object\n");
-      return;
+      PROCESS_EXIT();
     }
 
     cJSON_AddStringToObject(root, "s", "smart_humidity");
     cJSON *resources = cJSON_CreateArray();
-    cJSON_AddItemToArray(resources, cJSON_CreateString("latest"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("prediction"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("sensor/on"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("sensor/off"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("latestHum"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("predictionHum"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("sensorHum/on"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("sensorHum/off"));
     cJSON_AddItemToObject(root, "ss", resources);
     cJSON_AddNumberToObject(root, "t", SENSING_PERIOD_SECONDS);
 
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
-    if (payload == NULL) {
+    if(payload == NULL) {
       LOG_ERR("[Humidity] Failed to create payload\n");
-      return;
+      PROCESS_EXIT();
     }
 
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
@@ -90,50 +98,42 @@ static void register_to_cloud() {
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
     free(payload);
 
-    if (!registered) {
-      registration_retry_count++;
-      clock_wait(CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
-    }
-  }
-
-  if (!registered) {
-    LOG_WARN("[Humidity] Max registration attempts reached\n");
-  }
-}
-
-PROCESS_THREAD(thermometer_process, ev, data) {
-  static struct etimer timer;
-  PROCESS_BEGIN();
-
-  coap_engine_init();
-  register_to_cloud();
-
-  if (registered) {
-    coap_activate_resource(&res_latest, "latestHum");
-    coap_activate_resource(&res_prediction, "predictionHum");
-    coap_activate_resource(&res_on, "sensorHum/on");
-    coap_activate_resource(&res_off, "sensorHum/off");
-
-    sensor_on();
-    etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
-
-    while(1) {
+    if(!registered) {
+      retry++;
+      etimer_set(&timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-
-      if (sensor_is_active()) {
-        float temp = generate_random_temperature();
-        LOG_INFO("Generated temperature: %.2f\n", temp);
-        update_buffer(temp);
-        trigger_latest_event();
-
-        if (buffer_is_full()) {
-          LOG_INFO("Buffer is full, triggering prediction event.\n");
-          trigger_prediction_event();
-        }
-      }
-
-      etimer_reset(&timer);
     }
+  }
+
+  if(!registered) {
+    LOG_WARN("[Humidity] Max registration attempts reached\n");
+    PROCESS_EXIT();
+  }
+
+  coap_activate_resource(&res_latest, "latestHum");
+  coap_activate_resource(&res_prediction, "predictionHum");
+  coap_activate_resource(&res_on, "sensorHum/on");
+  coap_activate_resource(&res_off, "sensorHum/off");
+
+  sensor_on();
+  etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
+
+  while(1) {
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+
+    if(sensor_is_active()) {
+      float hum = generate_random_humidity(); // <-- implementa se non esiste
+      LOG_INFO("Generated humidity: %.2f\n", hum);
+      update_buffer(hum);
+      trigger_latest_event();
+
+      if(buffer_is_full()) {
+        LOG_INFO("Buffer is full, triggering prediction event.\n");
+        trigger_prediction_event();
+      }
+    }
+
+    etimer_reset(&timer);
   }
 
   PROCESS_END();
