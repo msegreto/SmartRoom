@@ -1,7 +1,7 @@
 CONTIKI_PROJECT = main
 all: prebuild $(CONTIKI_PROJECT)
 
-CONTIKI = ../..
+CONTIKI = /home/iot_ubuntu_intel/contiki-ng
 
 # File sorgenti del progetto
 PROJECT_SOURCEFILES += \
