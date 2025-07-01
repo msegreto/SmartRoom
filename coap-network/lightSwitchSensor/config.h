@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define CLOUD_SERVER_EP "coap://[fd00::202:2:2:2]:5683"
+#define CLOUD_SERVER_EP "coap://[fe80::202:2:2:2]:5683"
 #define REGISTRATION_RESOURCE_PATH "registration"
 #define REGISTRATION_ACK_CODE CREATED_2_01
 #define REGISTRATION_WAIT_SECONDS 5

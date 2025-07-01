@@ -2,10 +2,10 @@
 #define CONFIG_H
 
 // CoAP Cloud server endpoint
-#define CLOUD_SERVER_EP "coap://[fd00::1]:5683"
+#define CLOUD_SERVER_EP "coap://[fe80::202:2:2:2]:5683"
 
 // CoAP registration resource path
-#define REGISTRATION_RESOURCE_PATH "registrationSensor"
+#define REGISTRATION_RESOURCE_PATH "registration"
 
 // Registration settings
 #define MAX_REGISTRATION_RETRY 3
