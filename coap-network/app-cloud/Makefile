@@ -1,7 +1,7 @@
 CONTIKI_PROJECT = appCloud
 all: $(CONTIKI_PROJECT)
 
-CONTIKI = /home/iot_ubuntu_intel/contiki-ng
+CONTIKI = /home/iot_ubuntu_arm/contiki-ng
 
 # Escludi piattaforme leggere (come sky) se non ti servono
 PLATFORMS_EXCLUDE = sky z1

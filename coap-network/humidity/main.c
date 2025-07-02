@@ -26,8 +26,8 @@ extern coap_resource_t res_prediction;
 extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
-void trigger_prediction_event();
-void trigger_latest_event();
+//void trigger_prediction_event();
+//void trigger_latest_event();
 
 static int registered = 0;
 
@@ -154,3 +154,5 @@ PROCESS_THREAD(humidity_process, ev, data) {
 
   PROCESS_END();
 }
+
+

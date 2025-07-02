@@ -1,11 +1,11 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SENSING_PERIOD_SECONDS 60
+#define SENSING_PERIOD_SECONDS 5
 #define MEAN_TEMPERATURE 26.34
 #define STD_TEMPERATURE 1.85
 #define MAX_STEP 0.50
-#define BUFFER_SIZE 60
+#define BUFFER_SIZE 10
 
 #define CLOUD_SERVER_EP "coap://[fe80::202:2:2:2]:5683"
 #define REGISTRATION_RESOURCE_PATH "registration"
