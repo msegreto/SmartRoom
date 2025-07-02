@@ -22,6 +22,8 @@ static int registered = 0;
 // ==== Notification Handlers ====
 
 void temp_notification_handler(struct coap_observee_s *observee, void *notification, coap_notification_flag_t flag) {
+  LOG_INFO("Temperature notification handler triggered\n");
+
   switch(flag) {
     case NOTIFICATION_OK:
       LOG_INFO("Notification flag: OK\n");
@@ -48,6 +50,7 @@ void temp_notification_handler(struct coap_observee_s *observee, void *notificat
 
     const uint8_t *payload;
     int len = coap_get_payload(msg, &payload);
+    LOG_INFO("Payload length: %d\n", len);
 
     if (len > 0) {
       char buffer[32];
@@ -61,6 +64,8 @@ void temp_notification_handler(struct coap_observee_s *observee, void *notificat
       } else {
         LOG_WARN("Temp payload invalid: %s\n", buffer);
       }
+    } else {
+      LOG_WARN("Empty temperature payload\n");
     }
   } else {
     LOG_WARN("No temperature notification received\n");
@@ -68,6 +73,8 @@ void temp_notification_handler(struct coap_observee_s *observee, void *notificat
 }
 
 void hum_notification_handler(struct coap_observee_s *observee, void *notification, coap_notification_flag_t flag) {
+  LOG_INFO("Humidity notification handler triggered\n");
+
   switch(flag) {
     case NOTIFICATION_OK:
       LOG_INFO("Notification flag: OK\n");
@@ -94,6 +101,7 @@ void hum_notification_handler(struct coap_observee_s *observee, void *notificati
 
     const uint8_t *payload;
     int len = coap_get_payload(msg, &payload);
+    LOG_INFO("Payload length: %d\n", len);
 
     if (len > 0) {
       char buffer[32];
@@ -107,6 +115,8 @@ void hum_notification_handler(struct coap_observee_s *observee, void *notificati
       } else {
         LOG_WARN("Hum payload invalid: %s\n", buffer);
       }
+    } else {
+      LOG_WARN("Empty humidity payload\n");
     }
   } else {
     LOG_WARN("No humidity notification received\n");
@@ -116,6 +126,8 @@ void hum_notification_handler(struct coap_observee_s *observee, void *notificati
 // ==== Registration Response Handler ====
 
 static void client_chunk_handler(coap_message_t *response) {
+  LOG_INFO("Registration response handler triggered\n");
+
   if (!response) {
     LOG_ERR("Registration timeout - no response\n");
     return;
@@ -123,6 +135,7 @@ static void client_chunk_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
+  LOG_INFO("Received response payload of length: %d\n", len);
 
   if (len > 0 && chunk) {
     LOG_INFO("Received registration payload: %.*s\n", len, chunk);
@@ -154,7 +167,7 @@ static void client_chunk_handler(coap_message_t *response) {
       if (obs_temp != NULL) LOG_INFO("Observation to /predictionTemp registered successfully\n");
       else LOG_WARN("Observation to /predictionTemp failed\n");
 
-      obs_hum  = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
+      obs_hum = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
       if (obs_hum != NULL) LOG_INFO("Observation to /predictionHum registered successfully\n");
       else LOG_WARN("Observation to /predictionHum failed\n");
 
@@ -164,6 +177,8 @@ static void client_chunk_handler(coap_message_t *response) {
     }
 
     cJSON_Delete(json);
+  } else {
+    LOG_WARN("No payload received in registration response\n");
   }
 }
 
@@ -178,18 +193,23 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   PROCESS_BEGIN();
 
+  LOG_INFO("Actuator process started\n");
+
   coap_engine_init();
   LOG_INFO("CoAP engine initialized\n");
+
   button_hal_init();
+  LOG_INFO("Button HAL initialized\n");
 
   LOG_INFO("Waiting for network...\n");
   etimer_set(&retry_timer, CLOCK_SECOND * 10);
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&retry_timer));
 
-  LOG_INFO("Starting registration...\n");
+  LOG_INFO("Starting registration process...\n");
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &ep);
 
   while (!registered && retry < MAX_REGISTRATION_RETRY) {
+    LOG_INFO("Registration attempt #%d\n", retry + 1);
     coap_init_message(req, COAP_TYPE_CON, COAP_POST, 0);
     coap_set_header_uri_path(req, "/" REGISTRATION_RESOURCE_PATH);
 
@@ -204,6 +224,7 @@ PROCESS_THREAD(actuator_process, ev, data)
     cJSON_AddNumberToObject(root, "t", 60);
 
     char *payload = cJSON_PrintUnformatted(root);
+    LOG_INFO("Sending registration payload: %s\n", payload);
     coap_set_payload(req, (uint8_t *)payload, strlen(payload));
     cJSON_Delete(root);
 
@@ -211,7 +232,7 @@ PROCESS_THREAD(actuator_process, ev, data)
     free(payload);
 
     if (!registered) {
-      LOG_WARN("Registration attempt %d failed, retrying...\n", retry);
+      LOG_WARN("Registration attempt %d failed, retrying...\n", retry + 1);
       retry++;
       etimer_set(&retry_timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&retry_timer));
@@ -219,6 +240,10 @@ PROCESS_THREAD(actuator_process, ev, data)
   }
 
   if (!registered) {
-    LOG_WARN("Max registration attempts reached\n");
+    LOG_ERR("Max registration attempts reached, exiting process\n");
     PROCESS_EXIT();
   }
+
+  LOG_INFO("Actuator process completed and registered\n");
+  PROCESS_END();
+}
