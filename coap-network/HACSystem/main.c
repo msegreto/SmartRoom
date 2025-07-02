@@ -9,6 +9,7 @@
 #include "logic.h"
 #include "res-control.h"
 
+
 #define LOG_MODULE "Actuator"
 #define LOG_LEVEL LOG_LEVEL_APP
 
