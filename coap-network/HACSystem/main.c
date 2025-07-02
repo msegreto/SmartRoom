@@ -19,52 +19,92 @@ static int registered = 0;
 /* Callback di registrazione */
 static void client_chunk_handler(coap_message_t *response) {
   if (!response) {
-    LOG_ERR("[Actuator] Registration timeout\n");
+    LOG_ERR("[HACSystem] Registration timeout\n");
     return;
   }
+  LOG_INFO("[HACSystem] RESPONSE CODE %d\n", response->code);
   if (response->code == REGISTRATION_ACK_CODE) {
     registered = 1;
-    LOG_INFO("[Actuator] Registration OK\n");
+    LOG_INFO("[HACSystem] Registration OK\n");
   } else {
-    LOG_WARN("[Actuator] Registration failed\n");
+    LOG_WARN("[HACSystem] Registration failed\n");
   }
 }
 
-/* Callback di risposta per la config osservazioni */
-static void obs_response_handler(coap_message_t *response) {
-  const uint8_t *chunk;
+/* Callback di risposta per la config temperature */
+static void temp_response_handler(coap_message_t *response) {
   if (!response) {
-    LOG_ERR("[Observer] Failed to get observation config\n");
+    LOG_ERR("[Observer] Failed to get temp config - no response\n");
     return;
   }
 
+  LOG_INFO("[Observer] Temp response code: %d\n", response->code);
+  
+  if (response->code != CONTENT_2_05) {
+    LOG_ERR("[Observer] Temp config failed with code: %d\n", response->code);
+    return;
+  }
+
+  const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-  char payload[len + 1];
-  memcpy(payload, chunk, len);
-  payload[len] = '\0';
-
-  LOG_INFO("[Observer] Received config: %s\n", payload);
-
-  cJSON *root = cJSON_Parse(payload);
-  if (!root) {
-    LOG_ERR("[Observer] Invalid JSON\n");
+  
+  if (len <= 0 || !chunk) {
+    LOG_ERR("[Observer] Empty temp config payload\n");
     return;
   }
 
-  const cJSON *temp_uri = cJSON_GetObjectItem(root, "obs_temp");
-  const cJSON *hum_uri = cJSON_GetObjectItem(root, "obs_hum");
+  char temp_uri[len + 1];
+  memcpy(temp_uri, chunk, len);
+  temp_uri[len] = '\0';
 
-  if (!cJSON_IsString(temp_uri) || !cJSON_IsString(hum_uri)) {
-    LOG_ERR("[Observer] Malformed config\n");
-    cJSON_Delete(root);
+  LOG_INFO("[Observer] Received temp URI (len=%d): %s\n", len, temp_uri);
+  
+  // Verifica che l'URI sia valido
+  if (strlen(temp_uri) < 10) {
+    LOG_ERR("[Observer] Invalid temp URI length\n");
+    return;
+  }
+  
+  coap_obs_request_registration(NULL, temp_uri, NULL, NULL);
+  LOG_INFO("[Observer] Subscribed to temp URI\n");
+}
+
+/* Callback di risposta per la config humidity */
+static void hum_response_handler(coap_message_t *response) {
+  if (!response) {
+    LOG_ERR("[Observer] Failed to get hum config - no response\n");
     return;
   }
 
-  coap_obs_request_registration(NULL, (char *)temp_uri->valuestring, NULL, NULL);
-  coap_obs_request_registration(NULL, (char *)hum_uri->valuestring, NULL, NULL);
+  LOG_INFO("[Observer] Hum response code: %d\n", response->code);
+  
+  if (response->code != CONTENT_2_05) {
+    LOG_ERR("[Observer] Hum config failed with code: %d\n", response->code);
+    return;
+  }
 
-  LOG_INFO("[Observer] Subscribed to temp + hum\n");
-  cJSON_Delete(root);
+  const uint8_t *chunk;
+  int len = coap_get_payload(response, &chunk);
+  
+  if (len <= 0 || !chunk) {
+    LOG_ERR("[Observer] Empty hum config payload\n");
+    return;
+  }
+
+  char hum_uri[len + 1];
+  memcpy(hum_uri, chunk, len);
+  hum_uri[len] = '\0';
+
+  LOG_INFO("[Observer] Received hum URI (len=%d): %s\n", len, hum_uri);
+  
+  // Verifica che l'URI sia valido
+  if (strlen(hum_uri) < 10) {
+    LOG_ERR("[Observer] Invalid hum URI length\n");
+    return;
+  }
+  
+  coap_obs_request_registration(NULL, hum_uri, NULL, NULL);
+  LOG_INFO("[Observer] Subscribed to hum URI\n");
 }
 
 PROCESS_THREAD(actuator_process, ev, data) {
@@ -80,6 +120,12 @@ PROCESS_THREAD(actuator_process, ev, data) {
   retry = 0;
   registered = 0;
 
+  // Aspetta che la rete si stabilizzi prima di tentare la registrazione
+  LOG_INFO("[HACSystem] Waiting for network initialization...\n");
+  etimer_set(&retry_timer, CLOCK_SECOND * 10);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&retry_timer));
+  LOG_INFO("[HACSystem] Network initialization complete, starting registration...\n");
+
   // --- Registrazione al cloud
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &ep);
 
@@ -88,20 +134,20 @@ PROCESS_THREAD(actuator_process, ev, data) {
     coap_set_header_uri_path(req, "/" REGISTRATION_RESOURCE_PATH);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "s", "temp_actuator");
+    cJSON_AddStringToObject(root, "s", "HACSys");
 
     cJSON *res = cJSON_CreateArray();
-    cJSON_AddItemToArray(res, cJSON_CreateString("actuator/set_threshold"));
-    cJSON_AddItemToArray(res, cJSON_CreateString("actuator/get_threshold"));
-    cJSON_AddItemToArray(res, cJSON_CreateString("actuator/status"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("set_limit"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("get_limit"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("sts"));
     cJSON_AddItemToObject(root, "ss", res);
-    cJSON_AddNumberToObject(root, "t", 60); // opzionale
+    cJSON_AddNumberToObject(root, "t", 60);
 
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
     coap_set_payload(req, (uint8_t *)payload, strlen(payload));
-    LOG_INFO("[Actuator] Sending registration...\n");
+    LOG_INFO("[HACSystem] Sending registration...\n");
 
     COAP_BLOCKING_REQUEST(&ep, req, client_chunk_handler);
     free(payload);
@@ -114,28 +160,48 @@ PROCESS_THREAD(actuator_process, ev, data) {
   }
 
   if (!registered) {
-    LOG_WARN("[Actuator] Max registration attempts reached\n");
+    LOG_WARN("[HACSystem] Max registration attempts reached\n");
     PROCESS_EXIT();
   }
 
   // --- Attivazione risorse
-  coap_activate_resource(&res_set_threshold, "actuator/set_threshold");
-  coap_activate_resource(&res_get_threshold, "actuator/get_threshold");
-  coap_activate_resource(&res_status, "actuator/status");
+  coap_activate_resource(&res_set_threshold, "actuator/set_limit");
+  coap_activate_resource(&res_get_threshold, "actuator/get_limit");
+  coap_activate_resource(&res_status, "actuator/sts");
 
-  // --- Richiesta delle URI da osservare
+  // --- Richiesta degli URI da osservare (due richieste separate)
+  LOG_INFO("[Observer] Configuring cloud endpoint...\n");
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &cloud_ep);
+  
+  // Aspetta un po' prima di fare le richieste
+  etimer_set(&retry_timer, CLOCK_SECOND * 2);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&retry_timer));
+  
+  // Richiesta per temperatura
+  LOG_INFO("[Observer] Preparing temp config request...\n");
   coap_init_message(req, COAP_TYPE_CON, COAP_GET, 0);
-  coap_set_header_uri_path(req, "observeConfig");
+  coap_set_header_uri_path(req, "tempConfig");
+  LOG_INFO("[Observer] Requesting temp config...\n");
+  COAP_BLOCKING_REQUEST(&cloud_ep, req, temp_response_handler);
+  LOG_INFO("[Observer] Temp config request completed\n");
 
-  LOG_INFO("[Observer] Requesting observation config...\n");
-  COAP_BLOCKING_REQUEST(&cloud_ep, req, obs_response_handler);
+  // Aspetta prima della seconda richiesta
+  etimer_set(&retry_timer, CLOCK_SECOND * 1);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&retry_timer));
+
+  // Richiesta per umidità
+  LOG_INFO("[Observer] Preparing hum config request...\n");
+  coap_init_message(req, COAP_TYPE_CON, COAP_GET, 0);
+  coap_set_header_uri_path(req, "humConfig");
+  LOG_INFO("[Observer] Requesting hum config...\n");
+  COAP_BLOCKING_REQUEST(&cloud_ep, req, hum_response_handler);
+  LOG_INFO("[Observer] Hum config request completed\n");
 
   // --- Loop
   while (1) {
     PROCESS_YIELD();
     if (ev == button_hal_press_event) {
-      LOG_INFO("[Actuator] Button pressed, resetting state to none\n");
+      LOG_INFO("[HACSystem] Button pressed, resetting state to none\n");
       logic_reset_status();
     }
   }
