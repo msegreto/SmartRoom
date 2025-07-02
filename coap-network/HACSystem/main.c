@@ -16,6 +16,52 @@ AUTOSTART_PROCESSES(&actuator_process);
 
 static int registered = 0;
 
+
+static void temp_notification_handler(coap_message_t *notification) {
+  if(notification == NULL) {
+    LOG_WARN("[HACSystem] Temp notify: NULL message\n");
+    return;
+  }
+
+  const uint8_t *payload = NULL;
+  int len = coap_get_payload(notification, &payload);
+  if(payload && len > 0) {
+    char buffer[32];
+    memcpy(buffer, payload, len);
+    buffer[len] = '\0';
+    float temp_val = 0;
+    if(sscanf(buffer, "%f", &temp_val) == 1) {
+      LOG_INFO("[HACSystem] Temp notify: %.2f°C\n", temp_val);
+      logic_set_temp(temp_val);
+    } else {
+      LOG_WARN("[HACSystem] Temp notify: invalid payload '%s'\n", buffer);
+    }
+  }
+}
+
+
+static void hum_notification_handler(coap_message_t *notification) {
+  if(notification == NULL) {
+    LOG_WARN("[HACSystem] Hum notify: NULL message\n");
+    return;
+  }
+
+  const uint8_t *payload = NULL;
+  int len = coap_get_payload(notification, &payload);
+  if(payload && len > 0) {
+    char buffer[32];
+    memcpy(buffer, payload, len);
+    buffer[len] = '\0';
+    float hum_val = 0;
+    if(sscanf(buffer, "%f", &hum_val) == 1) {
+      LOG_INFO("[HACSystem] Hum notify: %.2f%%\n", hum_val * 100.0f);
+      logic_set_hum(hum_val);
+    } else {
+      LOG_WARN("[HACSystem] Hum notify: invalid payload '%s'\n", buffer);
+    }
+  }
+}
+
 /* Callback di registrazione */
 static void client_chunk_handler(coap_message_t *response) {
   LOG_INFO("[HACSystem] === REGISTRATION CALLBACK INVOKED ===\n");
@@ -86,11 +132,11 @@ static void client_chunk_handler(coap_message_t *response) {
         
         // Registra per osservazione con endpoint validi
         LOG_INFO("[HACSystem] Registering temp observation...\n");
-        coap_obs_request_registration(&temp_ep, "/predictionTemp", NULL, NULL);
+        coap_obs_request_registration(&temp_ep, "/predictionTemp", temp_notification_handler, NULL);
         LOG_INFO("[HACSystem] Temp observation registered\n");
         
         LOG_INFO("[HACSystem] Registering hum observation...\n");
-        coap_obs_request_registration(&hum_ep, "/predictionHum", NULL, NULL);
+        coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
         LOG_INFO("[HACSystem] Hum observation registered\n");
         
         LOG_INFO("[HACSystem] Subscribed to both sensors\n");
