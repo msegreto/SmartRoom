@@ -29,30 +29,10 @@ static int device_count = 0;
 static void res_post_handler(coap_message_t *request, coap_message_t *response,
                              uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 
-static void res_temp_config_handler(coap_message_t *request, coap_message_t *response,
-                                   uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
-
-static void res_hum_config_handler(coap_message_t *request, coap_message_t *response,
-                                  uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
-
 RESOURCE(res_registration_sensor,
          "title=\"Registration Resource\";ct=0",
          NULL,
          res_post_handler,
-         NULL,
-         NULL);
-
-RESOURCE(res_temp_config,
-         "title=\"Temperature Config\";rt=\"config\";ct=0",
-         res_temp_config_handler,
-         NULL,
-         NULL,
-         NULL);
-
-RESOURCE(res_hum_config,
-         "title=\"Humidity Config\";rt=\"config\";ct=0",
-         res_hum_config_handler,
-         NULL,
          NULL,
          NULL);
 
@@ -259,68 +239,12 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response,
 
   coap_set_status_code(response, CREATED_2_01);
   
-  // Aggiungi un payload di risposta per confermare la registrazione
-  const char *response_payload = "registered";
+  // Aggiungi un payload JSON con gli indirizzi IPv6 dei sensori
+  const char *response_payload = "{\"temp\":\"fd00::100\",\"hum\":\"fd00::101\"}";
   coap_set_payload(response, (uint8_t *)response_payload, strlen(response_payload));
-  coap_set_header_content_format(response, TEXT_PLAIN);
+  coap_set_header_content_format(response, APPLICATION_JSON);
   
   LOG_INFO("[Cloud] === POST HANDLER END (SUCCESS) ===\n");
-}
-
-static void res_temp_config_handler(coap_message_t *request, coap_message_t *response,
-                                   uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-  LOG_INFO("[Cloud] === TEMP CONFIG HANDLER INVOKED ===\n");
-  LOG_INFO("[Cloud] Request method: %d\n", request->code);
-  LOG_INFO("[Cloud] Request URI: %.*s\n", (int)request->uri_path_len, request->uri_path);
-  LOG_INFO("[Cloud] Buffer size: %d\n", preferred_size);
-  
-  const char *temp_uri = "coap://[fd00::100]:5683/predictionTemp";
-  int len = strlen(temp_uri);
-  
-  LOG_INFO("[Cloud] Temp URI length: %d, buffer size: %d\n", len, preferred_size);
-  
-  if (len > preferred_size) {
-    LOG_ERR("[Cloud] Temp URI too large: %d > %d\n", len, preferred_size);
-    coap_set_status_code(response, INTERNAL_SERVER_ERROR_5_00);
-    return;
-  }
-
-  LOG_INFO("[Cloud] Copying URI to buffer...\n");
-  memcpy(buffer, temp_uri, len);
-  coap_set_payload(response, buffer, len);
-  coap_set_header_content_format(response, TEXT_PLAIN);
-  coap_set_status_code(response, CONTENT_2_05);
-  
-  LOG_INFO("[Cloud] Sent temp URI: %s\n", temp_uri);
-  LOG_INFO("[Cloud] === TEMP CONFIG HANDLER COMPLETED ===\n");
-}
-
-static void res_hum_config_handler(coap_message_t *request, coap_message_t *response,
-                                  uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-  LOG_INFO("[Cloud] === HUM CONFIG HANDLER INVOKED ===\n");
-  LOG_INFO("[Cloud] Request method: %d\n", request->code);
-  LOG_INFO("[Cloud] Request URI: %.*s\n", (int)request->uri_path_len, request->uri_path);
-  LOG_INFO("[Cloud] Buffer size: %d\n", preferred_size);
-  
-  const char *hum_uri = "coap://[fd00::101]:5683/predictionHum";
-  int len = strlen(hum_uri);
-  
-  LOG_INFO("[Cloud] Hum URI length: %d, buffer size: %d\n", len, preferred_size);
-  
-  if (len > preferred_size) {
-    LOG_ERR("[Cloud] Hum URI too large: %d > %d\n", len, preferred_size);
-    coap_set_status_code(response, INTERNAL_SERVER_ERROR_5_00);
-    return;
-  }
-
-  LOG_INFO("[Cloud] Copying URI to buffer...\n");
-  memcpy(buffer, hum_uri, len);
-  coap_set_payload(response, buffer, len);
-  coap_set_header_content_format(response, TEXT_PLAIN);
-  coap_set_status_code(response, CONTENT_2_05);
-  
-  LOG_INFO("[Cloud] Sent hum URI: %s\n", hum_uri);
-  LOG_INFO("[Cloud] === HUM CONFIG HANDLER COMPLETED ===\n");
 }
 
 PROCESS(cloud_server_process, "Cloud Server Process");
@@ -347,23 +271,13 @@ PROCESS_THREAD(cloud_server_process, ev, data) {
   
   LOG_INFO("[Cloud] Activating registration resource...\n");
   coap_activate_resource(&res_registration_sensor, "registration");
-  
-  LOG_INFO("[Cloud] Activating temp config resource...\n");
-  coap_activate_resource(&res_temp_config, "tempConfig");
-  
-  LOG_INFO("[Cloud] Activating hum config resource...\n");
-  coap_activate_resource(&res_hum_config, "humConfig");
 
   LOG_INFO("[Cloud] Server started successfully. Waiting for registrations...\n");
   LOG_INFO("[Cloud] Max devices: %d\n", MAX_DEVICES);
   LOG_INFO("[Cloud] Listening on resources:\n");
   LOG_INFO("[Cloud]   - /registration\n");
-  LOG_INFO("[Cloud]   - /tempConfig\n");
-  LOG_INFO("[Cloud]   - /humConfig\n");
   LOG_INFO("[Cloud] Full URIs:\n");
   LOG_INFO("[Cloud]   - coap://[fe80::202:2:2:2]/registration\n");
-  LOG_INFO("[Cloud]   - coap://[fe80::202:2:2:2]/tempConfig\n");
-  LOG_INFO("[Cloud]   - coap://[fe80::202:2:2:2]/humConfig\n");
   
   // Heartbeat ogni 30 secondi
   etimer_set(&heartbeat_timer, CLOCK_SECOND * 30);
