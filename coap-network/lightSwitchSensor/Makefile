@@ -2,7 +2,6 @@ CONTIKI_PROJECT = main
 PROJECT_SOURCEFILES += main.c res-light.c
 
 CFLAGS += -I$(CONTIKI_NG)/os/net/app-layer/coap
-CFLAGS += -Wno-error  # opzionale se vuoi evitare che warning blocchino la build
 
 CONTIKI = /home/iot_ubuntu_intel/contiki-ng
 

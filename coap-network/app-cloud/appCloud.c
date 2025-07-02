@@ -4,6 +4,9 @@
 #include "sys/log.h"
 #include "sys/etimer.h"
 #include "net/linkaddr.h"
+#include "net/ipv6/uip.h"
+#include "net/ipv6/uiplib.h"
+#include "net/ipv6/uipbuf.h"
 #include "../cJSON-master/cJSON.h"
 #include <string.h>
 #include <stdio.h>
@@ -21,6 +24,7 @@ typedef struct {
   char services[7][32];
   int num_services;
   int interval;
+  char ipv6_addr[64];  // IPv6 address del dispositivo
 } device_entry_t;
 
 device_entry_t devices[MAX_DEVICES];
@@ -190,6 +194,14 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response,
   entry->id[sizeof(entry->id) - 1] = '\0';
   entry->num_services = 0;
 
+  // Estrai l'indirizzo IPv6 dalla richiesta
+  // In Contiki-NG, possiamo usare UIP_IP_BUF per accedere all'header IP
+  char addr_str[64];
+  uiplib_ipaddr_snprint(addr_str, sizeof(addr_str), &UIP_IP_BUF->srcipaddr);
+  strncpy(entry->ipv6_addr, addr_str, sizeof(entry->ipv6_addr) - 1);
+  entry->ipv6_addr[sizeof(entry->ipv6_addr) - 1] = '\0';
+  LOG_INFO("[Cloud] Device IPv6 address: %s\n", entry->ipv6_addr);
+
   LOG_INFO("[Cloud] Processing device ID: %s\n", entry->id);
 
   cJSON *item = NULL;
@@ -239,10 +251,52 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response,
 
   coap_set_status_code(response, CREATED_2_01);
   
-  // Aggiungi un payload JSON con gli indirizzi IPv6 dei sensori
-  const char *response_payload = "{\"temp\":\"fd00::100\",\"hum\":\"fd00::101\"}";
-  coap_set_payload(response, (uint8_t *)response_payload, strlen(response_payload));
+  // Trova i sensori di temperatura e umidità tra i dispositivi registrati
+  char temp_addr[64] = "";  // vuoto se non trovato
+  char hum_addr[64] = "";   // vuoto se non trovato
+  
+  for (int i = 0; i < device_count; i++) {
+    // Cerca il sensore di temperatura
+    for (int j = 0; j < devices[i].num_services; j++) {
+      if (strstr(devices[i].services[j], "temp") || strstr(devices[i].services[j], "therm")) {
+        strncpy(temp_addr, devices[i].ipv6_addr, sizeof(temp_addr) - 1);
+        temp_addr[sizeof(temp_addr) - 1] = '\0';
+        LOG_INFO("[Cloud] Found temperature sensor at: %s\n", temp_addr);
+        break;
+      }
+    }
+    
+    // Cerca il sensore di umidità
+    for (int j = 0; j < devices[i].num_services; j++) {
+      if (strstr(devices[i].services[j], "hum") || strstr(devices[i].services[j], "humid")) {
+        strncpy(hum_addr, devices[i].ipv6_addr, sizeof(hum_addr) - 1);
+        hum_addr[sizeof(hum_addr) - 1] = '\0';
+        LOG_INFO("[Cloud] Found humidity sensor at: %s\n", hum_addr);
+        break;
+      }
+    }
+  }
+  
+  // Crea il payload JSON con gli indirizzi trovati
+  char json_response[200];
+  if (strlen(temp_addr) > 0 && strlen(hum_addr) > 0) {
+    snprintf(json_response, sizeof(json_response), 
+             "{\"temp\":\"%s\",\"hum\":\"%s\"}", temp_addr, hum_addr);
+  } else if (strlen(temp_addr) > 0) {
+    snprintf(json_response, sizeof(json_response), 
+             "{\"temp\":\"%s\",\"hum\":\"not_found\"}", temp_addr);
+  } else if (strlen(hum_addr) > 0) {
+    snprintf(json_response, sizeof(json_response), 
+             "{\"temp\":\"not_found\",\"hum\":\"%s\"}", hum_addr);
+  } else {
+    snprintf(json_response, sizeof(json_response), 
+             "{\"temp\":\"not_found\",\"hum\":\"not_found\"}");
+  }
+  
+  coap_set_payload(response, (uint8_t *)json_response, strlen(json_response));
   coap_set_header_content_format(response, APPLICATION_JSON);
+  
+  LOG_INFO("[Cloud] Sending JSON response: %s\n", json_response);
   
   LOG_INFO("[Cloud] === POST HANDLER END (SUCCESS) ===\n");
 }

@@ -16,6 +16,46 @@ AUTOSTART_PROCESSES(&actuator_process);
 
 static int registered = 0;
 
+/* Callback per le notifiche di temperatura */
+static void temp_notification_handler(coap_observee_t *obs, void *notification, coap_notification_flag_t flag) {
+  coap_message_t *msg = (coap_message_t *)notification;
+  if (msg) {
+    const uint8_t *chunk;
+    int len = coap_get_payload(msg, &chunk);
+    if (len > 0) {
+      char temp_str[len + 1];
+      strncpy(temp_str, (char *)chunk, len);
+      temp_str[len] = '\0';
+      float temp_value = atof(temp_str);
+      LOG_INFO("[HACSystem] === TEMPERATURE NOTIFICATION ===\n");
+      LOG_INFO("[HACSystem] Received temperature: %.2f°C\n", temp_value);
+      LOG_INFO("[HACSystem] Raw data: %s\n", temp_str);
+    }
+  } else {
+    LOG_ERR("[HACSystem] No temperature notification received\n");
+  }
+}
+
+/* Callback per le notifiche di umidità */
+static void hum_notification_handler(coap_observee_t *obs, void *notification, coap_notification_flag_t flag) {
+  coap_message_t *msg = (coap_message_t *)notification;
+  if (msg) {
+    const uint8_t *chunk;
+    int len = coap_get_payload(msg, &chunk);
+    if (len > 0) {
+      char hum_str[len + 1];
+      strncpy(hum_str, (char *)chunk, len);
+      hum_str[len] = '\0';
+      float hum_value = atof(hum_str);
+      LOG_INFO("[HACSystem] === HUMIDITY NOTIFICATION ===\n");
+      LOG_INFO("[HACSystem] Received humidity: %.2f%%\n", hum_value);
+      LOG_INFO("[HACSystem] Raw data: %s\n", hum_str);
+    }
+  } else {
+    LOG_ERR("[HACSystem] No humidity notification received\n");
+  }
+}
+
 /* Callback di registrazione */
 static void client_chunk_handler(coap_message_t *response) {
   LOG_INFO("[HACSystem] === REGISTRATION CALLBACK INVOKED ===\n");
@@ -67,8 +107,8 @@ static void client_chunk_handler(coap_message_t *response) {
         static char hum_uri[100];
         
         LOG_INFO("[HACSystem] Building URIs...\n");
-        snprintf(temp_uri, sizeof(temp_uri), "coap://[%s]:5683/predictionTemp", temp_item->valuestring);
-        snprintf(hum_uri, sizeof(hum_uri), "coap://[%s]:5683/predictionHum", hum_item->valuestring);
+        snprintf(temp_uri, sizeof(temp_uri), "coap://[%s]:5683/prediction", temp_item->valuestring);
+        snprintf(hum_uri, sizeof(hum_uri), "coap://[%s]:5683/prediction", hum_item->valuestring);
         
         LOG_INFO("[HACSystem] Temp URI: %s\n", temp_uri);
         LOG_INFO("[HACSystem] Hum URI: %s\n", hum_uri);
@@ -84,13 +124,13 @@ static void client_chunk_handler(coap_message_t *response) {
         LOG_INFO("[HACSystem] Parsing hum endpoint...\n");
         coap_endpoint_parse(hum_uri, strlen(hum_uri), &hum_ep);
         
-        // Registra per osservazione con endpoint validi
+        // Registra per osservazione con endpoint validi e callback
         LOG_INFO("[HACSystem] Registering temp observation...\n");
-        coap_obs_request_registration(&temp_ep, "/predictionTemp", NULL, NULL);
+        coap_obs_request_registration(&temp_ep, "/prediction", temp_notification_handler, NULL);
         LOG_INFO("[HACSystem] Temp observation registered\n");
         
         LOG_INFO("[HACSystem] Registering hum observation...\n");
-        coap_obs_request_registration(&hum_ep, "/predictionHum", NULL, NULL);
+        coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
         LOG_INFO("[HACSystem] Hum observation registered\n");
         
         LOG_INFO("[HACSystem] Subscribed to both sensors\n");

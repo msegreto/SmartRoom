@@ -6,7 +6,7 @@
 #define REGISTRATION_RESOURCE_PATH "registration"
 #define REGISTRATION_ACK_CODE CREATED_2_01
 #define MAX_REGISTRATION_RETRY 3
-#define REGISTRATION_WAIT_SECONDS 10
+#define REGISTRATION_WAIT_SECONDS 5
 #define OBS_TEMP_URI "coap://[fd00::100]:5683/predictionTemp"
 #define OBS_HUM_URI  "coap://[fd00::101]:5683/predictionHum"
 

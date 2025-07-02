@@ -1,7 +1,0 @@
-CONTIKI_PROJECT = light_sensor_memory_test
-all: $(CONTIKI_PROJECT)
-
-MODULES_REL+=../cJSON-master
-
-CONTIKI = /home/iot_ubuntu_intel/contiki-ng
-include $(CONTIKI)/Makefile.include

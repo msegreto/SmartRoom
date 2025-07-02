@@ -6,19 +6,11 @@
 #include "leds.h"
 #include "random.h"
 #include "../cJSON-master/cJSON.h"
-
+#include "config.h"
 #include <stdlib.h>
 #include <string.h>
 #define LOG_MODULE "LightSensor"
 #define LOG_LEVEL LOG_LEVEL_INFO
-
-// CONFIG
-#define CLOUD_SERVER_EP "coap://[fd00::1]:5683"
-#define REGISTRATION_RESOURCE_PATH "registration"
-#define MAX_REGISTRATION_RETRY 5
-#define REGISTRATION_ACK_CODE CREATED_2_01
-#define REGISTRATION_WAIT_SECONDS 5
-#define SENSOR_SAMPLE_INTERVAL 30
 
 extern coap_resource_t res_light;
 
@@ -49,6 +41,7 @@ static void client_chunk_handler(coap_message_t *response) {
   }
 }
 
+
 PROCESS(light_sensor_main_process, "Light Sensor Main Process");
 AUTOSTART_PROCESSES(&light_sensor_main_process);
 
@@ -64,14 +57,15 @@ PROCESS_THREAD(light_sensor_main_process, ev, data)
 
   coap_engine_init();
 
-  // Wait for network to be established before attempting registration
+  // Wait for network 
   LOG_INFO("[LightSensor] Waiting for network establishment...\n");
-  etimer_set(&registration_timer, CLOCK_SECOND * 10); // Wait 10 seconds for network
+  etimer_set(&registration_timer, CLOCK_SECOND * 10);
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&registration_timer));
   LOG_INFO("[LightSensor] Network wait complete, starting registration\n");
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
 
+  // Wait for registration
   while (registration_retry_count < MAX_REGISTRATION_RETRY && registered == 0) {
     coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
     coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);

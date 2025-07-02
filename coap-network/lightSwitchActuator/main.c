@@ -2,101 +2,99 @@
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
 #include "sys/log.h"
+#include "config.h"
 #include "../cJSON-master/cJSON.h"
 
-#define LOG_MODULE "LightClient"
-#define LOG_LEVEL LOG_LEVEL_APP
+#define LOG_MODULE "LightActuator"
+#define LOG_LEVEL LOG_LEVEL_INFO
 
-#define SERVER_EP "coap://[fd00::1]"
+static int registered = 0;
+static int registration_retry_count = 0;
+static struct etimer wait_timer;
 
-// === Variabili globali ===
-static coap_endpoint_t cloud_ep;
-static bool sensor_found = false;
-static char sensor_ip[64] = {0};
-
-// === Handlers ===
-static void client_chunk_handler(coap_message_t *response) {
-  if (!response) {
-    LOG_ERR("Timeout in risposta CoAP\n");
+static void registration_response_handler(coap_message_t *response) {
+  if (response == NULL) {
+    LOG_ERR("Registration timeout\n");
     return;
   }
 
-  const uint8_t *chunk;
-  int len = coap_get_payload(response, &chunk);
-
-  char json_buf[128];
-  memcpy(json_buf, chunk, len);
-  json_buf[len] = '\0';
-
-  LOG_INFO("Risposta: %s\n", json_buf);
-
-  cJSON *root = cJSON_Parse(json_buf);
-  if (!root) {
-    LOG_ERR("JSON non valido\n");
-    return;
-  }
-
-  cJSON *ip = cJSON_GetObjectItem(root, "ip");
-  if (cJSON_IsString(ip)) {
-    strncpy(sensor_ip, ip->valuestring, sizeof(sensor_ip) - 1);
-    sensor_found = true;
-    LOG_INFO("Indirizzo trovato: %s\n", sensor_ip);
+  if (response->code == REGISTRATION_ACK_CODE) {
+    registered = 1;
+    LOG_INFO("Registration successful\n");
   } else {
-    LOG_WARN("Campo IP mancante\n");
+    LOG_WARN("Registration failed: %d\n", response->code);
   }
+}
 
+static char* create_registration_payload(void) {
+  cJSON *root = cJSON_CreateObject();
+  if (!root) return NULL;
+
+  cJSON_AddStringToObject(root, "s", "light_actuator");
+  
+  cJSON *services = cJSON_CreateArray();
+  cJSON_AddItemToArray(services, cJSON_CreateString("led"));
+  cJSON_AddItemToArray(services, cJSON_CreateString("on"));
+  cJSON_AddItemToArray(services, cJSON_CreateString("off"));
+  cJSON_AddItemToObject(root, "ss", services);
+  
+  cJSON_AddNumberToObject(root, "t", 60);
+  
+  char *payload = cJSON_PrintUnformatted(root);
   cJSON_Delete(root);
+  return payload;
 }
 
-// === Protothread di lookup ===
-static PT_THREAD(lookup_sensor_address(struct pt *pt)) {
-  static struct coap_blocking_request_state blocking_state;
+PROCESS(light_actuator_process, "Light Actuator");
+AUTOSTART_PROCESSES(&light_actuator_process);
+
+PROCESS_THREAD(light_actuator_process, ev, data) {
+  static coap_endpoint_t cloud_endpoint;
   static coap_message_t request[1];
-
-  PT_BEGIN(pt);
-
-  coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
-  coap_set_header_uri_path(request, "/lookup");
-  coap_set_header_uri_query(request, "s=light_sensor");
-
-  PT_WAIT_THREAD(pt, coap_blocking_request(
-    &blocking_state,
-    PROCESS_EVENT_NONE,
-    &cloud_ep,
-    request,
-    client_chunk_handler
-  ));
-
-  PT_END(pt);
-}
-
-// === Processo principale ===
-PROCESS(main_process, "Light Sensor Client");
-AUTOSTART_PROCESSES(&main_process);
-
-PROCESS_THREAD(main_process, ev, data) {
-  static struct pt lookup_pt;
+  static struct etimer network_timer;
 
   PROCESS_BEGIN();
 
-  LOG_INFO("Avvio del processo Light Sensor\n");
+  // Initialization
+  LOG_INFO("Light Actuator starting...\n");
 
   coap_engine_init();
-  coap_endpoint_parse(SERVER_EP, strlen(SERVER_EP), &cloud_ep);
-  PT_INIT(&lookup_pt);
-
-  PT_INIT(&lookup_pt);
-  while(PT_SCHEDULE(lookup_sensor_address(&lookup_pt))) {
-    PROCESS_PAUSE();
+  
+  // Wait fot network
+  etimer_set(&network_timer, CLOCK_SECOND * 10);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&network_timer));
+  
+  coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &cloud_endpoint);
+  
+  // Wait for registration
+  while (registration_retry_count < MAX_REGISTRATION_RETRY && !registered) {
+    coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
+    coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);
+    
+    char *payload = create_registration_payload();
+    if (payload) {
+      coap_set_payload(request, (uint8_t *)payload, strlen(payload));
+      LOG_INFO("Registering with cloud...\n");
+      
+      COAP_BLOCKING_REQUEST(&cloud_endpoint, request, registration_response_handler);
+      free(payload);
+    }
+    
+    if (!registered) {
+      registration_retry_count++;
+      if (registration_retry_count < MAX_REGISTRATION_RETRY) {
+        etimer_set(&wait_timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
+        PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&wait_timer));
+      }
+    }
   }
 
-
-  if (!sensor_found) {
-    LOG_ERR("Sensore non trovato. Terminazione.\n");
+  if (!registered) {
+    LOG_ERR("Registration failed after %d attempts\n", MAX_REGISTRATION_RETRY);
     PROCESS_EXIT();
   }
 
-  LOG_INFO("Setup completato. Pronto per interagire con il sensore.\n");
+  LOG_INFO("Light Actuator ready\n");
 
   while (1) {
     PROCESS_YIELD();

@@ -126,8 +126,8 @@ PROCESS_THREAD(humidity_process, ev, data) {
     PROCESS_EXIT();
   }
 
-  coap_activate_resource(&res_latest, "latestHum");
-  coap_activate_resource(&res_prediction, "predictionHum");
+  coap_activate_resource(&res_latest, "latest");
+  coap_activate_resource(&res_prediction, "prediction");
   coap_activate_resource(&res_on, "sensorHum/on");
   coap_activate_resource(&res_off, "sensorHum/off");
 

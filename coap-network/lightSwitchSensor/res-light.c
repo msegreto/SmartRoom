@@ -1,6 +1,4 @@
-#include <stdio.h>
-#include "coap-engine.h"
-#include <string.h>
+#include "res-light.h"
 
 extern int light_state;
 
@@ -10,10 +8,11 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response,
   snprintf(msg, sizeof(msg), "%d", light_state);
   memcpy(buffer, msg, strlen(msg));
   coap_set_payload(response, buffer, strlen(msg));
+  coap_set_header_content_format(response, TEXT_PLAIN);
 }
 
 RESOURCE(res_light,
-         "title=\"Light status\";rt=\"Text\"",
+         "title=\"Light\";rt=\"Light\";obs",
          res_get_handler,
          NULL,
          NULL,
