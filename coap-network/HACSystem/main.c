@@ -21,43 +21,59 @@ static int registered = 0;
 
 // ==== Notification Handlers ====
 
-static void temp_notification_handler(coap_observee_t *obs, void *data, coap_notification_flag_t flag) {
-  const uint8_t *payload = coap_observee_notification_payload(obs);
-  int len = coap_observee_notification_payload_length(obs);
+void temp_notification_handler(struct coap_observee_s *observee, void *notification, coap_notification_flag_t flag) {
+  coap_message_t *msg = (coap_message_t *)notification;
+  if (msg) {
+    LOG_INFO("Received temperature notification\n");
 
-  if(payload && len > 0) {
-    char buffer[32];
-    memcpy(buffer, payload, len);
-    buffer[len] = '\0';
-    float temp_val;
-    if(sscanf(buffer, "%f", &temp_val) == 1) {
-      LOG_INFO("Temp notify: %.2f°C\n", temp_val);
-      logic_set_temp(temp_val);
-      process_poll(&actuator_process);
-    } else {
-      LOG_WARN("Temp notify invalid payload: %s\n", buffer);
+    const uint8_t *payload;
+    int len = coap_get_payload(msg, &payload);
+
+    if (len > 0) {
+      char buffer[32];
+      memcpy(buffer, payload, len);
+      buffer[len] = '\0';
+      float temp_val;
+      if (sscanf(buffer, "%f", &temp_val) == 1) {
+        LOG_INFO("Parsed temperature: %.2f°C\n", temp_val);
+        logic_set_temp(temp_val);
+        process_poll(&actuator_process);
+      } else {
+        LOG_WARN("Temp payload invalid: %s\n", buffer);
+      }
     }
+  } else {
+    LOG_WARN("No temperature notification received\n");
   }
 }
 
-static void hum_notification_handler(coap_observee_t *obs, void *data, coap_notification_flag_t flag) {
-  const uint8_t *payload = coap_observee_notification_payload(obs);
-  int len = coap_observee_notification_payload_length(obs);
 
-  if(payload && len > 0) {
-    char buffer[32];
-    memcpy(buffer, payload, len);
-    buffer[len] = '\0';
-    float hum_val;
-    if(sscanf(buffer, "%f", &hum_val) == 1) {
-      LOG_INFO("Hum notify: %.2f%%\n", hum_val * 100.0f);
-      logic_set_hum(hum_val);
-      process_poll(&actuator_process);
-    } else {
-      LOG_WARN("Hum notify invalid payload: %s\n", buffer);
+void hum_notification_handler(struct coap_observee_s *observee, void *notification, coap_notification_flag_t flag) {
+  coap_message_t *msg = (coap_message_t *)notification;
+  if (msg) {
+    LOG_INFO("Received humidity notification\n");
+
+    const uint8_t *payload;
+    int len = coap_get_payload(msg, &payload);
+
+    if (len > 0) {
+      char buffer[32];
+      memcpy(buffer, payload, len);
+      buffer[len] = '\0';
+      float hum_val;
+      if (sscanf(buffer, "%f", &hum_val) == 1) {
+        LOG_INFO("Parsed humidity: %.2f%%\n", hum_val * 100.0f);
+        logic_set_hum(hum_val);
+        process_poll(&actuator_process);
+      } else {
+        LOG_WARN("Hum payload invalid: %s\n", buffer);
+      }
     }
+  } else {
+    LOG_WARN("No humidity notification received\n");
   }
 }
+
 
 // ==== Registration Response Handler ====
 
@@ -94,7 +110,8 @@ static void client_chunk_handler(coap_message_t *response) {
       coap_endpoint_parse(hum_uri, strlen(hum_uri), &hum_ep);
 
       obs_temp = coap_obs_request_registration(&temp_ep, "/predictionTemp", temp_notification_handler, NULL);
-      obs_hum = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
+      obs_hum  = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
+
 
       registered = 1;
     } else {
