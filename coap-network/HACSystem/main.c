@@ -9,7 +9,6 @@
 #include "logic.h"
 #include "res-control.h"
 
-
 #define LOG_MODULE "Actuator"
 #define LOG_LEVEL LOG_LEVEL_APP
 
@@ -23,6 +22,26 @@ static int registered = 0;
 // ==== Notification Handlers ====
 
 void temp_notification_handler(struct coap_observee_s *observee, void *notification, coap_notification_flag_t flag) {
+  switch(flag) {
+    case NOTIFICATION_OK:
+      LOG_INFO("Notification flag: OK\n");
+      break;
+    case OBSERVE_OK:
+      LOG_INFO("Notification flag: OBSERVE_OK\n");
+      break;
+    case NOTIFICATION_NON:
+      LOG_INFO("Notification flag: NON\n");
+      break;
+    case OBSERVE_NOT_SUPPORTED:
+      LOG_WARN("Observation not supported by server\n");
+      break;
+    case OBSERVE_TERMINATED:
+      LOG_WARN("Observation terminated by server\n");
+      break;
+    default:
+      LOG_WARN("Unknown notification flag: %d\n", flag);
+  }
+
   coap_message_t *msg = (coap_message_t *)notification;
   if (msg) {
     LOG_INFO("Received temperature notification\n");
@@ -48,8 +67,27 @@ void temp_notification_handler(struct coap_observee_s *observee, void *notificat
   }
 }
 
-
 void hum_notification_handler(struct coap_observee_s *observee, void *notification, coap_notification_flag_t flag) {
+  switch(flag) {
+    case NOTIFICATION_OK:
+      LOG_INFO("Notification flag: OK\n");
+      break;
+    case OBSERVE_OK:
+      LOG_INFO("Notification flag: OBSERVE_OK\n");
+      break;
+    case NOTIFICATION_NON:
+      LOG_INFO("Notification flag: NON\n");
+      break;
+    case OBSERVE_NOT_SUPPORTED:
+      LOG_WARN("Observation not supported by server\n");
+      break;
+    case OBSERVE_TERMINATED:
+      LOG_WARN("Observation terminated by server\n");
+      break;
+    default:
+      LOG_WARN("Unknown notification flag: %d\n", flag);
+  }
+
   coap_message_t *msg = (coap_message_t *)notification;
   if (msg) {
     LOG_INFO("Received humidity notification\n");
@@ -75,7 +113,6 @@ void hum_notification_handler(struct coap_observee_s *observee, void *notificati
   }
 }
 
-
 // ==== Registration Response Handler ====
 
 static void client_chunk_handler(coap_message_t *response) {
@@ -88,6 +125,7 @@ static void client_chunk_handler(coap_message_t *response) {
   int len = coap_get_payload(response, &chunk);
 
   if (len > 0 && chunk) {
+    LOG_INFO("Received registration payload: %.*s\n", len, chunk);
     char payload[len + 1];
     memcpy(payload, chunk, len);
     payload[len] = '\0';
@@ -104,15 +142,21 @@ static void client_chunk_handler(coap_message_t *response) {
     if (cJSON_IsString(temp_item) && cJSON_IsString(hum_item)) {
       static char temp_uri[100], hum_uri[100];
       snprintf(temp_uri, sizeof(temp_uri), "coap://[%s]:5683/predictionTemp", temp_item->valuestring);
+      LOG_INFO("Parsed temp URI: %s\n", temp_uri);
       snprintf(hum_uri, sizeof(hum_uri), "coap://[%s]:5683/predictionHum", hum_item->valuestring);
+      LOG_INFO("Parsed hum URI: %s\n", hum_uri);
 
       static coap_endpoint_t temp_ep, hum_ep;
       coap_endpoint_parse(temp_uri, strlen(temp_uri), &temp_ep);
       coap_endpoint_parse(hum_uri, strlen(hum_uri), &hum_ep);
 
       obs_temp = coap_obs_request_registration(&temp_ep, "/predictionTemp", temp_notification_handler, NULL);
-      obs_hum  = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
+      if (obs_temp != NULL) LOG_INFO("Observation to /predictionTemp registered successfully\n");
+      else LOG_WARN("Observation to /predictionTemp failed\n");
 
+      obs_hum  = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
+      if (obs_hum != NULL) LOG_INFO("Observation to /predictionHum registered successfully\n");
+      else LOG_WARN("Observation to /predictionHum failed\n");
 
       registered = 1;
     } else {
@@ -135,6 +179,7 @@ PROCESS_THREAD(actuator_process, ev, data)
   PROCESS_BEGIN();
 
   coap_engine_init();
+  LOG_INFO("CoAP engine initialized\n");
   button_hal_init();
 
   LOG_INFO("Waiting for network...\n");
@@ -166,6 +211,7 @@ PROCESS_THREAD(actuator_process, ev, data)
     free(payload);
 
     if (!registered) {
+      LOG_WARN("Registration attempt %d failed, retrying...\n", retry);
       retry++;
       etimer_set(&retry_timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&retry_timer));
@@ -176,19 +222,3 @@ PROCESS_THREAD(actuator_process, ev, data)
     LOG_WARN("Max registration attempts reached\n");
     PROCESS_EXIT();
   }
-
-  LOG_INFO("Activating resources...\n");
-  coap_activate_resource(&res_set_threshold, "actuator/set_limit");
-  coap_activate_resource(&res_get_threshold, "actuator/get_limit");
-  coap_activate_resource(&res_status, "actuator/sts");
-
-  while (1) {
-    PROCESS_YIELD();
-    if (ev == button_hal_press_event) {
-      LOG_INFO("Button pressed - resetting logic state\n");
-      logic_reset_status();
-    }
-  }
-
-  PROCESS_END();
-}
