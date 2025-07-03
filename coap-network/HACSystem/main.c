@@ -95,6 +95,8 @@ void hum_notification_handler(struct coap_observee_s *obs, void *notification, c
 static void registration_handler(coap_message_t *response) {
   LOG_INFO("Registration response received\n");
 
+  registered = 0; // Assume fallimento finché non si verifica tutto
+
   if (!response) {
     LOG_ERR("No response to registration request\n");
     return;
@@ -117,13 +119,20 @@ static void registration_handler(coap_message_t *response) {
     cJSON *temp_item = cJSON_GetObjectItemCaseSensitive(json, "temp");
     cJSON *hum_item = cJSON_GetObjectItemCaseSensitive(json, "hum");
 
-    if (!cJSON_IsString(temp_item) || !cJSON_IsString(hum_item)) {
-      LOG_WARN("Resources 'temp' and/or 'hum' not available yet. Will retry.\n");
-      registered = 0;  
+    const char *temp_name = (cJSON_IsString(temp_item) && temp_item->valuestring) ? temp_item->valuestring : NULL;
+    const char *hum_name  = (cJSON_IsString(hum_item)  && hum_item->valuestring) ? hum_item->valuestring  : NULL;
+
+    LOG_INFO("Received resource names - temp: '%s', hum: '%s'\n",
+             temp_name ? temp_name : "NULL",
+             hum_name  ? hum_name  : "NULL");
+
+    if (!temp_name || strlen(temp_name) == 0 || !hum_name || strlen(hum_name) == 0) {
+      LOG_WARN("Invalid registration response: missing or empty resource names. Will retry.\n");
       cJSON_Delete(json);
       return;
     }
 
+    // Se siamo qui, entrambe le risorse sono valide
     snprintf(temp_ip, sizeof(temp_ip), "coap://[fe80::203:3:3:3]:5683");
     snprintf(hum_ip, sizeof(hum_ip), "coap://[fe80::204:4:4:4]:5683");
 
@@ -132,12 +141,11 @@ static void registration_handler(coap_message_t *response) {
 
     LOG_INFO("Parsed temp endpoint: %s\n", temp_ip);
     LOG_INFO("Parsed hum endpoint: %s\n", hum_ip);
-    registered = 1;
 
+    registered = 1;
     cJSON_Delete(json);
   } else {
     LOG_WARN("Empty registration response\n");
-    registered = 0;  // anche qui forza retry
   }
 }
 
