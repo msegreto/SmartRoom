@@ -42,6 +42,5 @@ void trigger_latest_event() {
 
 static void res_event_handler(void) {
     LOG_INFO("[Latest] Notifying observers...\n");
-    int notified = coap_notify_observers(&res_latest);
-    LOG_INFO("[Latest] Notification result: %d\n", notified);
+    coap_notify_observers(&res_latest);
 }

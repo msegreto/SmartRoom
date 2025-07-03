@@ -25,8 +25,7 @@ void trigger_prediction_event() {
 
 static void res_event_handler(void) {
     LOG_INFO("[Prediction] Notifying observers...\n");
-    int notified = coap_notify_observers(&res_prediction);
-    LOG_INFO("[Prediction] Notification result: %d\n", notified);
+    coap_notify_observers(&res_prediction);
 }
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
