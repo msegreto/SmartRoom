@@ -30,8 +30,6 @@ static void res_event_handler(void) {
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-    LOG_INFO("[Prediction] GET handler invoked\n");
-
     last_prediction = 1;
     int len = snprintf((char *)buffer, preferred_size, "%.2f", last_prediction);
 
@@ -45,5 +43,4 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response,
 
     LOG_INFO("[Prediction] GET request handled, content sent\n");
 }
-
 

@@ -196,23 +196,9 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   LOG_INFO("Registration successful! Starting resource observation\n");
 
-  obs_temp = coap_obs_request_registration(&temp_ep, "/predictionTemp", temp_notification_handler, NULL);
-  if (!obs_temp) {
-    LOG_ERR("[Temp] Observation failed (no observee returned)\n");
-  } else if (!(obs_temp->obs_counter)) {
-    LOG_ERR("[Temp] Observation not acknowledged — server did NOT accept observe\n");
-  } else {
-    LOG_INFO("[Temp] Observation successfully acknowledged — counter = %lu\n", obs_temp->obs_counter);
-  }
+  obs_temp = coap_obs_request_registration(&temp_ep, "predictionTemp", temp_notification_handler, NULL);
+  obs_hum = coap_obs_request_registration(&hum_ep, "predictionHum", hum_notification_handler, NULL);
 
-  obs_hum = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
-  if (!obs_hum) {
-    LOG_ERR("[Hum] Observation failed (no observee returned)\n");
-  } else if (!(obs_hum->obs_counter)) {
-    LOG_ERR("[Hum] Observation not acknowledged — server did NOT accept observe\n");
-  } else {
-    LOG_INFO("[Hum] Observation successfully acknowledged — counter = %lu\n", obs_hum->obs_counter);
-  }
 
   if (!obs_temp || !obs_hum) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");
