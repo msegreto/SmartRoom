@@ -126,11 +126,12 @@ static void registration_handler(coap_message_t *response) {
              temp_name ? temp_name : "NULL",
              hum_name  ? hum_name  : "NULL");
 
-    if (!temp_name || strlen(temp_name) == 0 || !hum_name || strlen(hum_name) == 0) {
-      LOG_WARN("Invalid registration response: missing or empty resource names. Will retry.\n");
-      cJSON_Delete(json);
-      return;
-    }
+    if (!temp_name || strlen(temp_name) == 0 || strcmp(temp_name, "not_found") == 0 || //condizione da cambiare poi 
+        !hum_name || strlen(hum_name) == 0 || strcmp(hum_name, "not_found") == 0) {
+        LOG_WARN("Invalid registration response: missing, empty, or unresolved resource names. Will retry.\n");
+        cJSON_Delete(json);
+        return;
+      }
 
     // Se siamo qui, entrambe le risorse sono valide
     snprintf(temp_ip, sizeof(temp_ip), "coap://[fe80::203:3:3:3]:5683");
