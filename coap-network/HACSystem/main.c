@@ -56,14 +56,7 @@ void hum_response_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-
-  uint32_t observe_val;
-  if (coap_get_header_observe(response, &observe_val)) {
-    LOG_INFO("[Hum] Observe option in response: %lu\n", observe_val);
-  } else {
-    LOG_WARN("[Hum] No Observe option in response → not registered as observer\n");
-  }
-
+  
   if (len > 0) {
     char buffer[64];
     memcpy(buffer, chunk, len);
@@ -204,7 +197,22 @@ PROCESS_THREAD(actuator_process, ev, data)
   LOG_INFO("Registration successful! Starting resource observation\n");
 
   obs_temp = coap_obs_request_registration(&temp_ep, "/predictionTemp", temp_notification_handler, NULL);
-  obs_hum  = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
+  if (!obs_temp) {
+    LOG_ERR("[Temp] Observation failed (no observee returned)\n");
+  } else if (!(obs_temp->obs_counter)) {
+    LOG_ERR("[Temp] Observation not acknowledged — server did NOT accept observe\n");
+  } else {
+    LOG_INFO("[Temp] Observation successfully acknowledged — counter = %lu\n", obs_temp->obs_counter);
+  }
+
+  obs_hum = coap_obs_request_registration(&hum_ep, "/predictionHum", hum_notification_handler, NULL);
+  if (!obs_hum) {
+    LOG_ERR("[Hum] Observation failed (no observee returned)\n");
+  } else if (!(obs_hum->obs_counter)) {
+    LOG_ERR("[Hum] Observation not acknowledged — server did NOT accept observe\n");
+  } else {
+    LOG_INFO("[Hum] Observation successfully acknowledged — counter = %lu\n", obs_hum->obs_counter);
+  }
 
   if (!obs_temp || !obs_hum) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");
