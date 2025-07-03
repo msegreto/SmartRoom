@@ -124,8 +124,8 @@ static void registration_handler(coap_message_t *response) {
       return;
     }
 
-    snprintf(temp_ip, sizeof(temp_ip), "coap://[%s]:5683", temp_item->valuestring);
-    snprintf(hum_ip, sizeof(hum_ip), "coap://[%s]:5683", hum_item->valuestring);
+    snprintf(temp_ip, sizeof(temp_ip), "coap://[fe80::203:3:3:3%%iface]:5683");
+    snprintf(hum_ip, sizeof(hum_ip), "coap://[fe80::204:4:4:4%%iface]:5683");
 
     coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
     coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
