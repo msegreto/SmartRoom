@@ -56,6 +56,14 @@ void hum_response_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
+
+  uint32_t observe_val;
+  if (coap_get_header_observe(response, &observe_val)) {
+    LOG_INFO("[Hum] Observe option in response: %lu\n", observe_val);
+  } else {
+    LOG_WARN("[Hum] No Observe option in response → not registered as observer\n");
+  }
+
   if (len > 0) {
     char buffer[64];
     memcpy(buffer, chunk, len);
