@@ -97,7 +97,6 @@ PROCESS_THREAD(humidity_process, ev, data) {
     cJSON_AddItemToArray(resources, cJSON_CreateString("onh"));
     cJSON_AddItemToArray(resources, cJSON_CreateString("offh"));
     cJSON_AddItemToObject(root, "ss", resources);
-    cJSON_AddNumberToObject(root, "t", SENSING_PERIOD_SECONDS);
 
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);

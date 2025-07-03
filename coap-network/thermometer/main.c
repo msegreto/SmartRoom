@@ -99,7 +99,6 @@ PROCESS_THREAD(thermometer_process, ev, data) {
     cJSON_AddItemToArray(resources, cJSON_CreateString("ont"));
     cJSON_AddItemToArray(resources, cJSON_CreateString("offt"));
     cJSON_AddItemToObject(root, "ss", resources);
-    cJSON_AddNumberToObject(root, "t", SENSING_PERIOD_SECONDS);
 
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
