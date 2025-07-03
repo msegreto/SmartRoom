@@ -117,23 +117,27 @@ static void registration_handler(coap_message_t *response) {
     cJSON *temp_item = cJSON_GetObjectItemCaseSensitive(json, "temp");
     cJSON *hum_item = cJSON_GetObjectItemCaseSensitive(json, "hum");
 
-    if (cJSON_IsString(temp_item) && cJSON_IsString(hum_item)) {
-      snprintf(temp_ip, sizeof(temp_ip), "coap://[%s]:5683", temp_item->valuestring);
-      snprintf(hum_ip, sizeof(hum_ip), "coap://[%s]:5683", hum_item->valuestring);
-
-      coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
-      coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
-
-      LOG_INFO("Parsed temp endpoint: %s\n", temp_ip);
-      LOG_INFO("Parsed hum endpoint: %s\n", hum_ip);
-      registered = 1;
-    } else {
-      LOG_ERR("Missing or invalid 'temp' or 'hum' fields in registration response\n");
+    if (!cJSON_IsString(temp_item) || !cJSON_IsString(hum_item)) {
+      LOG_WARN("Resources 'temp' and/or 'hum' not available yet. Will retry.\n");
+      registered = 0;  
+      cJSON_Delete(json);
+      return;
     }
+
+    snprintf(temp_ip, sizeof(temp_ip), "coap://[%s]:5683", temp_item->valuestring);
+    snprintf(hum_ip, sizeof(hum_ip), "coap://[%s]:5683", hum_item->valuestring);
+
+    coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
+    coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
+
+    LOG_INFO("Parsed temp endpoint: %s\n", temp_ip);
+    LOG_INFO("Parsed hum endpoint: %s\n", hum_ip);
+    registered = 1;
 
     cJSON_Delete(json);
   } else {
     LOG_WARN("Empty registration response\n");
+    registered = 0;  // anche qui forza retry
   }
 }
 
