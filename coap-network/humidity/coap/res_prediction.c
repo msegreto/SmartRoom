@@ -1,4 +1,4 @@
-// coap/res_prediction.c
+
 #include "res_prediction.h"
 
 #include "sys/log.h"
