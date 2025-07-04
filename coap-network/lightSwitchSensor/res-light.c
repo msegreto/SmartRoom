@@ -4,11 +4,12 @@
 #define LOG_MODULE "Light_Resource"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-int light_state;
+int light_state = 0;
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
   LOG_INFO("=== LIGHT SENSOR VALUE REQUESTED ===\n");
+  LOG_INFO("[Light] GET handler called, current state = %d\n", light_state);
   
   char msg[4];
   snprintf(msg, sizeof(msg), "%d", light_state);
