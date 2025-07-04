@@ -17,7 +17,7 @@
 
 extern coap_resource_t res_light;
 
-static int light = 0;
+static int light_state = 0;
 static int registered = 0;
 
 PROCESS(light_sensor_main_process, "Light Sensor Main Process");
@@ -127,11 +127,11 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
 
     if (ev == button_hal_press_event && light == 0) {
       LOG_INFO("[Light] Button pressed: activating light\n");
-      light = 1;
+      light_state = 1;
 
       coap_init_message(led_request, COAP_TYPE_CON, COAP_POST, 0);
       coap_set_header_uri_path(led_request, "/led");
-      snprintf(led_payload, sizeof(led_payload), "%d", light);
+      snprintf(led_payload, sizeof(led_payload), "%d", light_state);
       coap_set_payload(led_request, (uint8_t *)led_payload, strlen(led_payload));
       COAP_BLOCKING_REQUEST(&actuator_ep, led_request, NULL);
 
@@ -145,11 +145,11 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
 
         if (ev == button_hal_press_event) {
           LOG_INFO("[Light] Button pressed again: deactivating light\n");
-          light = 0;
+          light_state = 0;
 
           coap_init_message(led_request, COAP_TYPE_CON, COAP_POST, 0);
           coap_set_header_uri_path(led_request, "/led");
-          snprintf(led_payload, sizeof(led_payload), "%d", light);
+          snprintf(led_payload, sizeof(led_payload), "%d", light_state);
           coap_set_payload(led_request, (uint8_t *)led_payload, strlen(led_payload));
           COAP_BLOCKING_REQUEST(&actuator_ep, led_request, NULL);
 
@@ -162,11 +162,11 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
 
           if (decision == 1) {
             LOG_INFO("[Light] Deactivating after timeout\n");
-            light = 0;
+            light_state = 0;
 
             coap_init_message(led_request, COAP_TYPE_CON, COAP_POST, 0);
             coap_set_header_uri_path(led_request, "/led");
-            snprintf(led_payload, sizeof(led_payload), "%d", light);
+            snprintf(led_payload, sizeof(led_payload), "%d", light_state);
             coap_set_payload(led_request, (uint8_t *)led_payload, strlen(led_payload));
             COAP_BLOCKING_REQUEST(&actuator_ep, led_request, NULL);
 
