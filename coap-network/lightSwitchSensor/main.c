@@ -15,30 +15,34 @@
 #define LOG_MODULE "LightSensor"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
+PROCESS(light_sensor_main_process, "Light Sensor Main Process");
+AUTOSTART_PROCESSES(&light_sensor_main_process);
+
 extern coap_resource_t res_light;
 
 static int light_state = 0;
 static int registered = 0;
 
-PROCESS(light_sensor_main_process, "Light Sensor Main Process");
-AUTOSTART_PROCESSES(&light_sensor_main_process);
-
 // === Callback per risposta registrazione ===
-static void registration_response_handler(coap_message_t *response) {
+static void client_chunk_handler(coap_message_t *response) {
+  LOG_INFO("[Light] === RESPONSE HANDLER CALLED ===\n");
+  
   const uint8_t *chunk;
   if (response == NULL) {
-    LOG_ERR("[Light] Registration timed out - no response\n");
+    LOG_ERR("[Light] Registration timed out - no response received\n");
     return;
   }
-
-  LOG_INFO("[Light] Registration response code: %d\n", response->code);
-
+  
+  LOG_INFO("[Light] Response received! Code: %d\n", response->code);
+  
   int len = coap_get_payload(response, &chunk);
-  if (len > 0 && chunk != NULL) {
+  if (len <= 0 || chunk == NULL) {
+    LOG_WARN("[Light] Empty or invalid payload received (len=%d)\n", len);
+  } else {
     char payload[len + 1];
     memcpy(payload, chunk, len);
     payload[len] = '\0';
-    LOG_INFO("[Light] Payload: %s\n", payload);
+    LOG_INFO("[Light] Response payload: '%s'\n", payload);
   }
 
   if (response->code == REGISTRATION_ACK_CODE) {
@@ -47,6 +51,8 @@ static void registration_response_handler(coap_message_t *response) {
   } else {
     LOG_WARN("[Light] Registration failed with code: %d\n", response->code);
   }
+  
+  LOG_INFO("[Light] === RESPONSE HANDLER END ===\n");
 }
 
 PROCESS_THREAD(light_sensor_main_process, ev, data) {
@@ -60,9 +66,12 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
 
   coap_engine_init();
 
-  LOG_INFO("[Light] Waiting for network...\n");
-  etimer_set(&timer, CLOCK_SECOND * 10);
+   // Wait for network to be established before attempting registration
+  LOG_INFO("[Light] Waiting for network establishment...\n");
+  etimer_set(&timer, CLOCK_SECOND * 10); // Wait 10 seconds for network
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+  LOG_INFO("[Light] Network wait complete, starting registration\n");
+
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
   coap_endpoint_parse(ACTUATOR_EP, strlen(ACTUATOR_EP), &actuator_ep);
@@ -98,9 +107,11 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
       PROCESS_EXIT();
     }
 
-    LOG_INFO("[Light] Registration payload: %s\n", payload);
+    LOG_INFO("[Light] JSON payload (len=%zu): %s\n", strlen(payload), payload);
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
-    COAP_BLOCKING_REQUEST(&server_ep, request, registration_response_handler);
+    LOG_INFO("[Light] Sending registration request...\n");
+
+    COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
     free(payload);
 
     if (!registered) {
