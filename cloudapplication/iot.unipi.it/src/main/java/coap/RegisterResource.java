@@ -82,7 +82,6 @@ public class RegisterResource extends CoapResource {
             
             System.out.println("[RegisterResource] Parsed device ID: " + registration.deviceId);
             System.out.println("[RegisterResource] Number of services: " + registration.services.length);
-            System.out.println("[RegisterResource] Interval: " + registration.interval);
             
             // Controlla se il dispositivo è già registrato
             if (database.containsKey(clientIP)) {
@@ -139,11 +138,8 @@ public class RegisterResource extends CoapResource {
             String[] services = extractArrayField(json, "\"ss\"");
             if (services == null) return null;
             
-            // Estrai il campo "t" (interval)
-            Integer interval = extractNumberField(json, "\"t\"");
-            if (interval == null) return null;
             
-            return new DeviceRegistration(deviceId, services, interval);
+            return new DeviceRegistration(deviceId, services);
             
         } catch (Exception e) {
             System.err.println("[RegisterResource] JSON parsing error: " + e.getMessage());
@@ -234,7 +230,6 @@ public class RegisterResource extends CoapResource {
             }
         }
         info.append(";");
-        info.append("interval:").append(registration.interval).append(";");
         info.append("endpoint:").append(endpoint).append(";");
         info.append("timestamp:").append(System.currentTimeMillis());
         
@@ -247,12 +242,10 @@ public class RegisterResource extends CoapResource {
     private static class DeviceRegistration {
         String deviceId;
         String[] services;
-        int interval;
-        
-        DeviceRegistration(String deviceId, String[] services, int interval) {
+       
+        DeviceRegistration(String deviceId, String[] services) {
             this.deviceId = deviceId;
             this.services = services;
-            this.interval = interval;
         }
     }
     
