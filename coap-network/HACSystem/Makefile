@@ -1,7 +1,9 @@
+USER_NAME := $(shell whoami)
+
 CONTIKI_PROJECT = main
 all: prebuild $(CONTIKI_PROJECT)
 
-CONTIKI = /home/iot_ubuntu_arm/contiki-ng
+CONTIKI = /home/$(USER_NAME)/contiki-ng
 
 # File sorgenti del progetto
 PROJECT_SOURCEFILES += \
