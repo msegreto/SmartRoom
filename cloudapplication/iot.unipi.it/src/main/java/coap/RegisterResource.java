@@ -1,5 +1,11 @@
 package coap;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
+
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -15,34 +21,49 @@ public class RegisterResource extends CoapResource {
 
     @Override
     public void handlePOST(CoapExchange exchange) {
-        System.out.println("[RegisterResource] === INCOMING POST REQUEST ===");
-        
         String nodeIP = exchange.getSourceAddress().getHostAddress();
-        System.out.println("[RegisterResource] Node IP: " + nodeIP);
-        
         String payload = exchange.getRequestText();
-        System.out.println("[RegisterResource] Payload: " + payload);
+        
+        System.out.println("[RegisterResource] Registration request from " + nodeIP);
         
         DeviceRegistration reg = parseRegistrationJSON(payload);
         if (reg != null) {
+            // Save the registration in the database
             if(!Database.saveDeviceRegistration(nodeIP, reg.deviceId, reg.services)){
                 exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Failed to save registration");
-                System.err.println("[RegisterResource] Failed to save registration for device " + reg.deviceId);
+                System.err.println("[RegisterResource] Database save failed for device " + reg.deviceId);
                 return;
-            };
+            }
+            
+            // Start observers for data resources only
+            for (String resource : reg.services) {
+                if (isObservableResource(reg.deviceId, resource)) {
+                    final Observer observerClient = new Observer(nodeIP, resource);
+                    Thread observertThread = new Thread(observerClient);
+                    observertThread.start();
+                    System.out.println("[RegisterResource] Observer started for " + resource);
+                }
+            }
             
             exchange.respond(ResponseCode.CREATED, "Registration successful");
-            System.out.println("[RegisterResource] Device " + reg.deviceId + 
-                            " registered at " + nodeIP + " with " + reg.services.length + " resources");
+            System.out.println("[RegisterResource] Device " + reg.deviceId + " registered successfully");
             
-            // Stampa le risorse registrate
-            for (String resource : reg.services) {
-                System.out.println("[RegisterResource]   Resource: coap://[" + nodeIP + "]:5683/" + resource);
-            }
         } else {
             exchange.respond(ResponseCode.BAD_REQUEST, "Invalid JSON payload");
-            System.err.println("[RegisterResource] Failed to parse registration JSON");
+            System.err.println("[RegisterResource] Invalid JSON from " + nodeIP);
         }
+    }
+    
+    private boolean isObservableResource(String deviceType, String resource) {
+        // Non osservare i comandi
+        String[] commandResources = {"on", "off", "toggle", "set", "reset", "start", "stop"};
+        
+        for (String command : commandResources) {
+            if (resource.equalsIgnoreCase(command)) {
+                return false;
+            }
+        }
+        return true; // Osserva tutto il resto
     }
     
     /**

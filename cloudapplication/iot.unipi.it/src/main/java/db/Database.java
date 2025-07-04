@@ -29,10 +29,9 @@ public class Database {
         try (Connection conn = DriverManager.getConnection(JDBC_URL1, JDBC_USER, JDBC_PASSWORD);
              Statement stmt = conn.createStatement()) {
             stmt.execute(createDatabaseSQL);
-            System.out.println("Database created successfully.");
+            System.out.println("[Database] Database initialized");
         } catch (SQLException e) {
-            System.out.println("Database not created.");
-            e.printStackTrace();
+            System.err.println("[Database] Failed to create database: " + e.getMessage());
         }
     }
 
@@ -43,14 +42,13 @@ public class Database {
         try (Connection conn = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
              Statement stmt = conn.createStatement()) {
             stmt.execute(deleteDatabaseSQL);
-            System.out.println("Database deleted successfully.");
+            System.out.println("[Database] Database reset");
         } catch (SQLException e) {
-            System.out.println("Database not deleted.");
-            e.printStackTrace();
+            System.err.println("[Database] Failed to delete database: " + e.getMessage());
         }
     }
 
-    static Connection getConnection() throws SQLException {
+    public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
     }
 
@@ -64,10 +62,9 @@ public class Database {
         try (Connection conn = getConnection();
             Statement stmt = conn.createStatement()) {
             stmt.execute(createTableSQL);
-            System.out.println("Table ipv6_addresses created successfully.");
+            System.out.println("[Database] Tables created");
         } catch (SQLException e) {
-            System.err.println("Error creating table: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("[Database] Table creation failed: " + e.getMessage());
         }
     }
 
