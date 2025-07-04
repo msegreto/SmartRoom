@@ -89,7 +89,6 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
     }
     cJSON_AddItemToArray(resources, cJSON_CreateString("light"));
     cJSON_AddItemToObject(root, "ss", resources);
-    cJSON_AddNumberToObject(root, "t", SENSOR_SAMPLE_INTERVAL);
 
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
