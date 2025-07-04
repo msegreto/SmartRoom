@@ -32,27 +32,34 @@ extern coap_resource_t res_off;
 static int registered = 0;
 
 static void client_chunk_handler(coap_message_t *response) {
+  LOG_INFO("[Humidity] === RESPONSE HANDLER CALLED ===\n");
+  
   const uint8_t *chunk;
   if (response == NULL) {
-    LOG_ERR("[Humidity] Registration timed out\n");
+    LOG_ERR("[Humidity] Registration timed out - no response received\n");
     return;
   }
+  
+  LOG_INFO("[Humidity] Response received! Code: %d\n", response->code);
+  
   int len = coap_get_payload(response, &chunk);
   if (len <= 0 || chunk == NULL) {
-    LOG_WARN("[Humidity] Empty or invalid payload received\n");
-    return;
+    LOG_WARN("[Humidity] Empty or invalid payload received (len=%d)\n", len);
+  } else {
+    char payload[len + 1];
+    memcpy(payload, chunk, len);
+    payload[len] = '\0';
+    LOG_INFO("[Humidity] Response payload: '%s'\n", payload);
   }
-  char payload[len + 1];
-  memcpy(payload, chunk, len);
-  payload[len] = '\0';
 
-  LOG_INFO("[Humidity] Response: %i\n", response->code);
   if (response->code == REGISTRATION_ACK_CODE) {
     registered = 1;
-    LOG_INFO("[Humidity] Registration successful\n");
+    LOG_INFO("[Humidity] Registration successful!\n");
   } else {
-    LOG_WARN("[Humidity] Registration failed\n");
+    LOG_WARN("[Humidity] Registration failed with code: %d\n", response->code);
   }
+  
+  LOG_INFO("[Humidity] === RESPONSE HANDLER END ===\n");
 }
 
 PROCESS_THREAD(humidity_process, ev, data) {
