@@ -1,4 +1,8 @@
 #include "res-light.h"
+#include "sys/log.h"
+
+#define LOG_MODULE "Light_Resource"
+#define LOG_LEVEL LOG_LEVEL_INFO
 
 int light_state = 0;
 
@@ -12,6 +16,8 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response,
   memcpy(buffer, msg, strlen(msg));
   coap_set_payload(response, buffer, strlen(msg));
   coap_set_header_content_format(response, TEXT_PLAIN);
+  
+  LOG_INFO("Light value sent: %s\n", msg);
 }
 
 RESOURCE(res_light,
