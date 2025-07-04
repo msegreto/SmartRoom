@@ -11,8 +11,9 @@
 #define LOG_MODULE "Actuator"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
+PROCESS(startup_process, "Startup Delay Process");
 PROCESS(actuator_process, "Perceived Temp Actuator");
-AUTOSTART_PROCESSES(&actuator_process);
+AUTOSTART_PROCESSES(&startup_process);
 
 static int registered = 0;
 static char temp_ip[64];
@@ -56,7 +57,7 @@ void hum_response_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-  
+
   if (len > 0) {
     char buffer[64];
     memcpy(buffer, chunk, len);
@@ -95,7 +96,7 @@ void hum_notification_handler(struct coap_observee_s *obs, void *notification, c
 static void registration_handler(coap_message_t *response) {
   LOG_INFO("Registration response received\n");
 
-  registered = 0; // Assume fallimento finché non si verifica tutto
+  registered = 0;
 
   if (!response) {
     LOG_ERR("No response to registration request\n");
@@ -126,14 +127,13 @@ static void registration_handler(coap_message_t *response) {
              temp_name ? temp_name : "NULL",
              hum_name  ? hum_name  : "NULL");
 
-    if (!temp_name || strlen(temp_name) == 0 || strcmp(temp_name, "not_found") == 0 || //condizione da cambiare poi 
+    if (!temp_name || strlen(temp_name) == 0 || strcmp(temp_name, "not_found") == 0 ||
         !hum_name || strlen(hum_name) == 0 || strcmp(hum_name, "not_found") == 0) {
-        LOG_WARN("Invalid registration response: missing, empty, or unresolved resource names. Will retry.\n");
-        cJSON_Delete(json);
-        return;
-      }
+      LOG_WARN("Invalid registration response: missing, empty, or unresolved resource names. Will retry.\n");
+      cJSON_Delete(json);
+      return;
+    }
 
-    // Se siamo qui, entrambe le risorse sono valide
     snprintf(temp_ip, sizeof(temp_ip), "coap://[fe80::203:3:3:3]:5683");
     snprintf(hum_ip, sizeof(hum_ip), "coap://[fe80::204:4:4:4]:5683");
 
@@ -148,6 +148,24 @@ static void registration_handler(coap_message_t *response) {
   } else {
     LOG_WARN("Empty registration response\n");
   }
+}
+
+// === Processo di startup ===
+
+PROCESS_THREAD(startup_process, ev, data)
+{
+  static struct etimer delay_timer;
+
+  PROCESS_BEGIN();
+
+  LOG_INFO("Startup process: waiting 5 seconds before starting actuator_process\n");
+  etimer_set(&delay_timer, CLOCK_SECOND * 5);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&delay_timer));
+
+  LOG_INFO("Startup process: starting actuator_process\n");
+  process_start(&actuator_process, NULL);
+
+  PROCESS_END();
 }
 
 // === Processo principale ===
@@ -212,7 +230,6 @@ PROCESS_THREAD(actuator_process, ev, data)
   obs_temp = coap_obs_request_registration(&temp_ep, "predt", temp_notification_handler, NULL);
   obs_hum = coap_obs_request_registration(&hum_ep, "predh", hum_notification_handler, NULL);
 
-
   if (!obs_temp || !obs_hum) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");
     PROCESS_EXIT();
@@ -243,4 +260,3 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   PROCESS_END();
 }
-

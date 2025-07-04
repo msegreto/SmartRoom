@@ -27,8 +27,8 @@ extern coap_resource_t res_prediction;
 extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
-void trigger_prediction_event();
-void trigger_latest_event();
+//void trigger_prediction_event();
+//void trigger_latest_event();
 
 static int registered = 0;
 
@@ -110,11 +110,10 @@ PROCESS_THREAD(thermometer_process, ev, data) {
       PROCESS_EXIT();
     }
     cJSON_AddItemToArray(resources, cJSON_CreateString("temp"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("pred"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("on"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("off"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("predt"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("ont"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("offt"));
     cJSON_AddItemToObject(root, "ss", resources);
-    cJSON_AddNumberToObject(root, "t", SENSING_PERIOD_SECONDS);
 
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -146,10 +145,10 @@ PROCESS_THREAD(thermometer_process, ev, data) {
   }
 
   // Attiva risorse e avvia sensing
-  coap_activate_resource(&res_latest, "latest");
-  coap_activate_resource(&res_prediction, "prediction");
-  coap_activate_resource(&res_on, "sensor/on");
-  coap_activate_resource(&res_off, "sensor/off");
+  coap_activate_resource(&res_latest, "temp");
+  coap_activate_resource(&res_prediction, "predt");
+  coap_activate_resource(&res_on, "ont");
+  coap_activate_resource(&res_off, "offt");
 
   sensor_on();
   etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);

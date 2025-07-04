@@ -19,13 +19,13 @@ CFLAGS += -I./coap
 PROJECTDIRS += sensor coap
 
 MODULES_REL+= ../cJSON-master
-MODULES_REL+=/home/iot_ubuntu_intel/.local/lib/python3.10/site-packages/emlearn
+MODULES_REL+=/home/iot_ubuntu_arm/.local/lib/python3.10/site-packages/emlearn
 TARGET_LIBFILES+=-lm
-INC+=/home/iot_ubuntu_intel/.local/lib/python3.10/site-packages/emlearn
+INC+=/home/iot_ubuntu_arm/.local/lib/python3.10/site-packages/emlearn
 
 MAKE_NET = MAKE_NET_IPV6
 
-CONTIKI = /home/iot_ubuntu_intel/contiki-ng
+CONTIKI = /home/iot_ubuntu_arm/contiki-ng
 $(shell mkdir -p build/cooja/obj/sensor build/cooja/obj/coap)
 
 # Include the CoAP implementation
