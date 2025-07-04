@@ -125,7 +125,7 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
   while (1) {
     PROCESS_YIELD();
 
-    if (ev == button_hal_press_event && light == 0) {
+    if (ev == button_hal_press_event && light_state == 0) {
       LOG_INFO("[Light] Button pressed: activating light\n");
       light_state = 1;
 
