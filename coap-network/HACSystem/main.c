@@ -81,31 +81,43 @@ void hum_notification_handler(struct coap_observee_s *obs, void *notification, c
   if (notification) hum_response_handler((coap_message_t *)notification);
 }
 
-static void registration_handler(coap_message_t *response) {
-  LOG_INFO("Registration response received\n");
-
-  registered = 0;
-  if (!response) {
-    LOG_ERR("No response to registration request\n");
+static void client_chunk_handler(coap_message_t *response) {
+  LOG_INFO("[Humidity] === RESPONSE HANDLER CALLED ===\n");
+  
+  const uint8_t *chunk;
+  if (response == NULL) {
+    LOG_ERR("[Humidity] Registration timed out - no response received\n");
     return;
   }
-
-  const uint8_t *chunk;
+  
+  LOG_INFO("[Humidity] Response received! Code: %d\n", response->code);
+  
   int len = coap_get_payload(response, &chunk);
-  if (len > 0 && chunk) {
-    LOG_INFO("Registration payload received\n");
-    registered = 1;
+  if (len <= 0 || chunk == NULL) {
+    LOG_WARN("[Humidity] Empty or invalid payload received (len=%d)\n", len);
   } else {
-    LOG_WARN("Empty registration response\n");
+    char payload[len + 1];
+    memcpy(payload, chunk, len);
+    payload[len] = '\0';
+    LOG_INFO("[Humidity] Response payload: '%s'\n", payload);
   }
+
+  if (response->code == REGISTRATION_ACK_CODE) {
+    registered = 1;
+    LOG_INFO("[Humidity] Registration successful!\n");
+  } else {
+    LOG_WARN("[Humidity] Registration failed with code: %d\n", response->code);
+  }
+  
+  LOG_INFO("[Humidity] === RESPONSE HANDLER END ===\n");
 }
 
 PROCESS_THREAD(actuator_process, ev, data)
 {
-  static struct etimer init_timer;
-  static coap_endpoint_t reg_ep;
-  static coap_message_t req[1];
-  static int retry = 0;
+  static struct etimer timer;
+  static coap_endpoint_t server_ep;
+  static coap_message_t request[1];
+  static int retry;
 
   PROCESS_BEGIN();
 
@@ -114,18 +126,32 @@ PROCESS_THREAD(actuator_process, ev, data)
   coap_engine_init();
   button_hal_init();
 
-  LOG_INFO("Waiting 10s for network stabilization\n");
-  etimer_set(&init_timer, CLOCK_SECOND * 10);
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
+  LOG_INFO("[HACSystem] Waiting for network establishment...\n");
+  etimer_set(&timer, CLOCK_SECOND * 10); // Wait 10 seconds for network
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+  LOG_INFO("[HACSystem] Network wait complete, starting registration\n");
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &reg_ep);
+  registered = 0;
+  retry = 0;
 
-  while (!registered && retry < MAX_REGISTRATION_RETRY) {
-    LOG_INFO("Attempting registration (%d/%d)\n", retry + 1, MAX_REGISTRATION_RETRY);
+  while(retry < MAX_REGISTRATION_RETRY && !registered) {
+    coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
+    coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);
 
-    coap_init_message(req, COAP_TYPE_CON, COAP_POST, 0);
-    coap_set_header_uri_path(req, "/" REGISTRATION_RESOURCE_PATH);
+    cJSON *root = cJSON_CreateObject();
+    if(root == NULL) {
+      LOG_ERR("[HACSystem] Failed to create JSON object\n");
+      PROCESS_EXIT();
+    }
 
+    cJSON_AddStringToObject(root, "s", "HACSys");
+    cJSON *resources = cJSON_CreateArray();
+    if(resources == NULL) {
+      LOG_ERR("[HACSystem] Failed to create JSON array\n");
+      cJSON_Delete(root);
+      PROCESS_EXIT();
+    }
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "s", "HACSys");
     cJSON *res = cJSON_CreateArray();
@@ -135,22 +161,30 @@ PROCESS_THREAD(actuator_process, ev, data)
     cJSON_AddItemToObject(root, "ss", res);
     char *payload = cJSON_PrintUnformatted(root);
 
-    coap_set_payload(req, (uint8_t *)payload, strlen(payload));
+    char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
-    COAP_BLOCKING_REQUEST(&reg_ep, req, registration_handler);
+    if(payload == NULL) {
+      LOG_ERR("[HACSystem] Failed to create payload\n");
+      PROCESS_EXIT();
+    }
+
+    LOG_INFO("[HACSystem] JSON payload (len=%zu): %s\n", strlen(payload), payload);
+    coap_set_payload(request, (uint8_t *)payload, strlen(payload));
+    LOG_INFO("[HACSystem] Sending registration request...\n");
+
+    COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
     free(payload);
 
-    if (!registered) {
+    if(!registered) {
       retry++;
-      LOG_WARN("Registration failed. Retrying in %d seconds...\n", REGISTRATION_WAIT_SECONDS);
-      etimer_set(&init_timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
-      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
+      etimer_set(&timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
     }
   }
 
-  if (!registered) {
-    LOG_ERR("Registration failed after %d attempts. Exiting process.\n", MAX_REGISTRATION_RETRY);
+  if(!registered) {
+    LOG_WARN("[HACSystem] Max registration attempts reached\n");
     PROCESS_EXIT();
   }
 
