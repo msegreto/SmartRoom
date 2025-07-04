@@ -4,168 +4,119 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.Collection;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.json.simple.JSONArray;
 
 public class Database {
-    private Map<String, String> data;
+    static final String JDBC_URL = "jdbc:mysql://localhost:3306/smartroom";
+    static final String JDBC_USER = "admin";
+    static final String JDBC_PASSWORD = "iotubuntu";
 
-    public Database() {
-        data = new HashMap<>();
-    }
-
-    /**
-     * Inserisce una coppia chiave-valore nel database
-     * @param key La chiave (stringa)
-     * @param value Il valore (stringa)
-     * @return Il valore precedente associato alla chiave, o null se non esisteva
-     */
-    public String insert(String key, String value) {
-        if (key == null || value == null) {
-            throw new IllegalArgumentException("Chiave e valore non possono essere null");
+    public static void createDatabase() {
+        String JDBC_URL1 = "jdbc:mysql://localhost:3306/";
+        final String DATABASE_NAME = "smartroom";
+        String createDatabaseSQL = "CREATE DATABASE IF NOT EXISTS " + DATABASE_NAME;   
+    
+        try (Connection conn = DriverManager.getConnection(JDBC_URL1, JDBC_USER, JDBC_PASSWORD);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(createDatabaseSQL);
+            System.out.println("Database created successfully.");
+        } catch (SQLException e) {
+            System.out.println("Database not created.");
+            e.printStackTrace();
         }
-        
-        String previousValue = data.put(key, value);
-        System.out.println("[Database] Inserito: " + key + " -> " + value);
-        
-        return previousValue;
     }
 
-    /**
-     * Recupera un valore dalla chiave
-     * @param key La chiave da cercare
-     * @return Il valore associato alla chiave, o null se non esiste
-     */
-    public String get(String key) {
-        return data.get(key);
-    }
+    public static void deleteDatabase() {
+        final String DATABASE_NAME = "smartroom";
+        String deleteDatabaseSQL = "DROP DATABASE IF EXISTS " + DATABASE_NAME;
 
-    /**
-     * Rimuove una coppia dal database
-     * @param key La chiave da rimuovere
-     * @return Il valore rimosso, o null se la chiave non esisteva
-     */
-    public String remove(String key) {
-        String removedValue = data.remove(key);
-        if (removedValue != null) {
-            System.out.println("[Database] Rimosso: " + key + " -> " + removedValue);
+        try (Connection conn = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(deleteDatabaseSQL);
+            System.out.println("Database deleted successfully.");
+        } catch (SQLException e) {
+            System.out.println("Database not deleted.");
+            e.printStackTrace();
         }
-        return removedValue;
     }
 
-    /**
-     * Verifica se una chiave esiste nel database
-     * @param key La chiave da verificare
-     * @return true se la chiave esiste, false altrimenti
-     */
-    public boolean containsKey(String key) {
-        return data.containsKey(key);
+    static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
     }
 
-    /**
-     * Verifica se un valore esiste nel database
-     * @param value Il valore da verificare
-     * @return true se il valore esiste, false altrimenti
-     */
-    public boolean containsValue(String value) {
-        return data.containsValue(value);
+    public static void createTableIPV6() {
+        String createTableSQL = "CREATE TABLE IF NOT EXISTS ipv6_addresses (" +
+                                "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                                "nodeip VARCHAR(89) NOT NULL, " +
+                                "nodename VARCHAR(80) NOT NULL, " +
+                                "resource VARCHAR(80) NOT NULL)";
+
+        try (Connection conn = getConnection();
+            Statement stmt = conn.createStatement()) {
+            stmt.execute(createTableSQL);
+            System.out.println("Table ipv6_addresses created successfully.");
+        } catch (SQLException e) {
+            System.err.println("Error creating table: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
-    /**
-     * Restituisce tutte le chiavi
-     * @return Set di tutte le chiavi
-     */
-    public Set<String> getAllKeys() {
-        return data.keySet();
-    }
-
-    /**
-     * Restituisce tutti i valori
-     * @return Collection di tutti i valori
-     */
-    public Collection<String> getAllValues() {
-        return data.values();
-    }
-
-    /**
-     * Restituisce tutte le coppie chiave-valore
-     * @return Set di tutte le entry
-     */
-    public Set<Map.Entry<String, String>> getAllEntries() {
-        return data.entrySet();
-    }
-
-    /**
-     * Restituisce il numero di elementi nel database
-     * @return Il numero di coppie chiave-valore
-     */
-    public int size() {
-        return data.size();
-    }
-
-    /**
-     * Verifica se il database è vuoto
-     * @return true se vuoto, false altrimenti
-     */
-    public boolean isEmpty() {
-        return data.isEmpty();
-    }
-
-    /**
-     * Svuota completamente il database
-     */
-    public void clear() {
-        data.clear();
-        System.out.println("[Database] Database svuotato");
-    }
-
-    /**
-     * Aggiorna un valore esistente (solo se la chiave esiste già)
-     * @param key La chiave da aggiornare
-     * @param newValue Il nuovo valore
-     * @return true se l'aggiornamento è avvenuto, false se la chiave non esisteva
-     */
-    public boolean update(String key, String newValue) {
-        if (data.containsKey(key)) {
-            String oldValue = data.put(key, newValue);
-            System.out.println("[Database] Aggiornato: " + key + " da '" + oldValue + "' a '" + newValue + "'");
+    public static Boolean saveDeviceRegistration(String nodeIP, String nodeName, String[] resources) {
+        String insertSQL = "INSERT INTO ipv6_addresses (nodeip, nodename, resource) VALUES (?, ?, ?)";
+        
+        try (Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+            
+            for (String resource : resources) {
+                pstmt.setString(1, nodeIP);
+                pstmt.setString(2, nodeName);
+                pstmt.setString(3, resource);
+                pstmt.addBatch();
+            }
+            
+            int[] results = pstmt.executeBatch();
+            System.out.println("[Database] Saved " + results.length + " resources for node " + nodeName);
             return true;
-        }
-        return false;
-    }
 
-    /**
-     * Inserisce o aggiorna una coppia (upsert)
-     * @param key La chiave
-     * @param value Il valore
-     * @return true se è stato un inserimento, false se è stato un aggiornamento
-     */
-    public boolean upsert(String key, String value) {
-        boolean wasNew = !data.containsKey(key);
-        data.put(key, value);
+        } catch (SQLException e) {
+            System.err.println("[Database] Error saving node registration: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    public static String getResourceIP(String resourceName) {
+        String selectSQL = "SELECT nodeip FROM ipv6_addresses WHERE resource = ? LIMIT 1";
         
-        if (wasNew) {
-            System.out.println("[Database] Nuovo inserimento: " + key + " -> " + value);
-        } else {
-            System.out.println("[Database] Aggiornamento: " + key + " -> " + value);
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            
+            pstmt.setString(1, resourceName);
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                String nodeIP = rs.getString("nodeip");
+                System.out.println("[Database] Found resource '" + resourceName + "' at IP: " + nodeIP);
+                return nodeIP;
+            } else {
+                System.out.println("[Database] Resource '" + resourceName + "' not found");
+                return null;
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("[Database] Error searching for resource: " + e.getMessage());
+            e.printStackTrace();
+            return null;
         }
-        
-        return wasNew;
-    }
-
-    /**
-     * Stampa tutto il contenuto del database
-     */
-    public void printAll() {
-        System.out.println("[Database] Contenuto completo (" + size() + " elementi):");
-        for (Map.Entry<String, String> entry : data.entrySet()) {
-            System.out.println("  " + entry.getKey() + " -> " + entry.getValue());
-        }
-    }
-
-    /**
-     * Restituisce una rappresentazione stringa del database
-     */
-    @Override
-    public String toString() {
-        return "Database{size=" + size() + ", data=" + data + "}";
     }
 }

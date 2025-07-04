@@ -27,40 +27,33 @@ extern coap_resource_t res_prediction;
 extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
-//void trigger_prediction_event();
-//void trigger_latest_event();
+void trigger_prediction_event();
+void trigger_latest_event();
 
 static int registered = 0;
 
 static void client_chunk_handler(coap_message_t *response) {
-  LOG_INFO("[Thermometer] === RESPONSE HANDLER CALLED ===\n");
-  
   const uint8_t *chunk;
   if (response == NULL) {
-    LOG_ERR("[Thermometer] Registration timed out - no response received\n");
+    LOG_ERR("[Thermometer] Registration timed out\n");
     return;
   }
-  
-  LOG_INFO("[Thermometer] Response received! Code: %d\n", response->code);
-  
   int len = coap_get_payload(response, &chunk);
   if (len <= 0 || chunk == NULL) {
-    LOG_WARN("[Thermometer] Empty or invalid payload received (len=%d)\n", len);
-  } else {
-    char payload[len + 1];
-    memcpy(payload, chunk, len);
-    payload[len] = '\0';
-    LOG_INFO("[Thermometer] Response payload: '%s'\n", payload);
+    LOG_WARN("[Thermometer] Empty or invalid payload received\n");
+    return;
   }
+  char payload[len + 1];
+  memcpy(payload, chunk, len);
+  payload[len] = '\0';
 
+  LOG_INFO("[Thermometer] Response: %i\n", response->code);
   if (response->code == REGISTRATION_ACK_CODE) {
     registered = 1;
-    LOG_INFO("[Thermometer] Registration successful!\n");
+    LOG_INFO("[Thermometer] Registration successful\n");
   } else {
-    LOG_WARN("[Thermometer] Registration failed with code: %d\n", response->code);
+    LOG_WARN("[Thermometer] Registration failed\n");
   }
-  
-  LOG_INFO("[Thermometer] === RESPONSE HANDLER END ===\n");
 }
 
 PROCESS_THREAD(thermometer_process, ev, data) {
@@ -80,15 +73,7 @@ PROCESS_THREAD(thermometer_process, ev, data) {
   LOG_INFO("[Thermometer] Network wait complete, starting registration\n");
 
   // Registrazione diretta nel protothread
-  LOG_INFO("[Thermometer] Attempting to parse endpoint: %s\n", CLOUD_SERVER_EP);
-  if(coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep) == 0) {
-    LOG_ERR("[Thermometer] Failed to parse server endpoint!\n");
-    PROCESS_EXIT();
-  }
-  LOG_INFO("[Thermometer] Server endpoint parsed successfully\n");
-  LOG_INFO("[Thermometer] Target server: %s:%d\n", 
-           server_ep.ipaddr.u8[0] == 0xfd ? "fd00::1" : "unknown", 
-           server_ep.port);
+  coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
   registered = 0;
   retry = 0;
 
@@ -110,10 +95,11 @@ PROCESS_THREAD(thermometer_process, ev, data) {
       PROCESS_EXIT();
     }
     cJSON_AddItemToArray(resources, cJSON_CreateString("temp"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("predt"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("ont"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("offt"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("pred"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("on"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("off"));
     cJSON_AddItemToObject(root, "ss", resources);
+    cJSON_AddNumberToObject(root, "t", SENSING_PERIOD_SECONDS);
 
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -125,11 +111,9 @@ PROCESS_THREAD(thermometer_process, ev, data) {
 
     LOG_INFO("[Thermometer] JSON payload (len=%zu): %s\n", strlen(payload), payload);
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
-    LOG_INFO("[Thermometer] Sending registration request to fd00::1:5683...\n");
-    LOG_INFO("[Thermometer] Request details - Type: CON, Method: POST, URI: /%s\n", REGISTRATION_RESOURCE_PATH);
+    LOG_INFO("[Thermometer] Sending registration request...\n");
 
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
-    LOG_INFO("[Thermometer] COAP_BLOCKING_REQUEST completed, checking response...\n");
     free(payload);
 
     if(!registered) {
@@ -145,10 +129,10 @@ PROCESS_THREAD(thermometer_process, ev, data) {
   }
 
   // Attiva risorse e avvia sensing
-  coap_activate_resource(&res_latest, "temp");
-  coap_activate_resource(&res_prediction, "predt");
-  coap_activate_resource(&res_on, "ont");
-  coap_activate_resource(&res_off, "offt");
+  coap_activate_resource(&res_latest, "latest");
+  coap_activate_resource(&res_prediction, "prediction");
+  coap_activate_resource(&res_on, "sensor/on");
+  coap_activate_resource(&res_off, "sensor/off");
 
   sensor_on();
   etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);

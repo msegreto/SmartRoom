@@ -13,9 +13,6 @@ static int registration_retry_count = 0;
 static struct etimer wait_timer;
 
 static void registration_response_handler(coap_message_t *response) {
-  LOG_INFO("=== REGISTRATION RESPONSE HANDLER STARTED ===\n");
-  
-  LOG_INFO("Received registration response\n");
   if (response == NULL) {
     LOG_ERR("Registration timeout\n");
     return;
@@ -80,6 +77,7 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
       LOG_INFO("Registering with cloud...\n");
       
       COAP_BLOCKING_REQUEST(&cloud_endpoint, request, registration_response_handler);
+      free(payload);
     }
     
     if (!registered) {
@@ -95,22 +93,11 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
     LOG_ERR("Registration failed after %d attempts\n", MAX_REGISTRATION_RETRY);
     PROCESS_EXIT();
   }
-  
-  // Attiva la risorsa LED
-  extern coap_resource_t res_led;
-  coap_activate_resource(&res_led, "led");
-  
+
   LOG_INFO("Light Actuator ready\n");
-  LOG_INFO("LED resource activated at /led\n");
-  LOG_INFO("Waiting for CoAP requests...\n");
 
   while (1) {
     PROCESS_YIELD();
-    
-    // Log per monitorare eventi generici
-    if (ev != PROCESS_EVENT_CONTINUE) {
-      LOG_INFO("Event received: %d\n", ev);
-    }
   }
 
   PROCESS_END();
