@@ -23,7 +23,6 @@ MODULES_REL+=/home/iot_ubuntu_intel/.local/lib/python3.10/site-packages/emlearn
 TARGET_LIBFILES+=-lm
 INC+=/home/iot_ubuntu_intel/.local/lib/python3.10/site-packages/emlearn
 
-MAKE_ROUTING = MAKE_ROUTING_RPL_CLASSIC
 MAKE_NET = MAKE_NET_IPV6
 
 CONTIKI = /home/iot_ubuntu_intel/contiki-ng
