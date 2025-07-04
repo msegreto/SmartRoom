@@ -199,7 +199,7 @@ PROCESS_THREAD(actuator_process, ev, data)
       coap_set_header_uri_path(disc_req, uri);
 
       LOG_INFO("Sending GET request to %s\n", uri);
-      COAP_BLOCKING_REQUEST(&disc_ep, disc_req, registration_handler);
+      COAP_BLOCKING_REQUEST(&disc_ep, disc_req, client_chunk_handler);
 
       len = coap_get_payload(disc_req, &chunk);
       if (len <= 0 || len >= sizeof(payload)) {
