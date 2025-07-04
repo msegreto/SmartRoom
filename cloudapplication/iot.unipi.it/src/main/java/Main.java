@@ -1,5 +1,3 @@
-import javax.xml.crypto.Data;
-
 import coap.MyServer;
 import coap.RegisterResource;
 import coap.ServiceResource;
