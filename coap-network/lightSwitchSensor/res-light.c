@@ -26,3 +26,9 @@ RESOURCE(res_light,
          NULL,
          NULL,
          NULL);
+
+// === NUOVA FUNZIONE PER NOTIFICARE OSSERVATORI ===
+void res_light_trigger(void) {
+  LOG_INFO("[Light] Notifying observers of light state change\n");
+  coap_notify_observers(&res_light);
+}

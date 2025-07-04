@@ -22,7 +22,6 @@ extern coap_resource_t res_light;
 
 static int registered = 0;
 
-// === Callback per risposta registrazione ===
 static void client_chunk_handler(coap_message_t *response) {
   LOG_INFO("[Light] === RESPONSE HANDLER CALLED ===\n");
 
@@ -131,13 +130,13 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
     if (ev == button_hal_press_event && light_state == 0) {
       LOG_INFO("[Light] Button pressed: activating light\n");
       light_state = 1;
-      res_light.trigger();
+      res_light_trigger();
       etimer_set(&timer, CLOCK_SECOND * 10);
     } 
     else if (ev == button_hal_press_event && light_state == 1) {
       LOG_INFO("[Light] Button pressed: deactivating light\n");
       light_state = 0;
-      res_light.trigger();
+      res_light_trigger();
     }
     else if (etimer_expired(&timer) && light_state == 1) {
       int decision = random_rand() % 2;
@@ -146,7 +145,7 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
       if (decision == 1) {
         LOG_INFO("[Light] Deactivating after timeout\n");
         light_state = 0;
-        res_light.trigger();
+        res_light_trigger();
       } else {
         LOG_INFO("[Light] Keeping light active\n");
         etimer_reset(&timer);
