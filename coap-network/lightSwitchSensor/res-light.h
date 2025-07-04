@@ -6,5 +6,8 @@
 #include <stdio.h>
 
 extern coap_resource_t res_light;
+extern int light_state;
+
+void res_light_trigger(void);
 
 #endif

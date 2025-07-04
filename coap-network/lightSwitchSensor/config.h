@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 // CoAP Cloud server endpoint
-#define CLOUD_SERVER_EP "coap://[fe80::202:2:2:2]:5683"
+#define CLOUD_SERVER_EP "coap://[fd00::1]:5683"
 
 // CoAP registration resource path
 #define REGISTRATION_RESOURCE_PATH "registration"
@@ -14,5 +14,6 @@
 // Sample interval for sensors/actuators
 #define MAX_REGISTRATION_RETRY 5
 #define SENSOR_SAMPLE_INTERVAL 10
+
 
 #endif // CONFIG_H

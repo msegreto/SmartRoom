@@ -120,7 +120,6 @@ public class RegisterResource extends CoapResource {
             return null;
         }
     }
-
     /**
      * Classe interna per rappresentare una registrazione
      */
