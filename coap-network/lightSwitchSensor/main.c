@@ -1,12 +1,14 @@
 #include "contiki.h"
+#include "config.h"
+#include "lib/random.h"
+#include "sys/etimer.h"
+#include "sys/log.h"
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
-#include "sys/log.h"
-#include "dev/button-hal.h"
-#include "leds.h"
-#include "random.h"
 #include "../cJSON-master/cJSON.h"
-#include "config.h"
+#include "dev/button-hal.h"
+#include "res-light.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -15,141 +17,165 @@
 
 extern coap_resource_t res_light;
 
-static int light = 0; // false = 0, true = 1
-
-static struct etimer debounce_timer;
-static struct etimer monitoring_timer;
-
+static int light = 0;
 static int registered = 0;
-static int registration_retry_count = 0;
 
 PROCESS(light_sensor_main_process, "Light Sensor Main Process");
 AUTOSTART_PROCESSES(&light_sensor_main_process);
 
-// === Funzione per invio CoAP all'attuatore ===
-static void send_light_state_to_actuator(int state) {
-  static coap_endpoint_t actuator_ep;
-  static coap_message_t request[1];
-
-  coap_endpoint_parse(ACTUATOR_EP, strlen(ACTUATOR_EP), &actuator_ep);
-  coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
-  coap_set_header_uri_path(request, "/led");
-
-  char payload[2];
-  snprintf(payload, sizeof(payload), "%d", state);
-  coap_set_payload(request, (uint8_t *)payload, strlen(payload));
-
-  LOG_INFO("Sending light state to actuator: %s\n", state ? "true" : "false");
-
-  COAP_BLOCKING_REQUEST(&actuator_ep, request, NULL);
-}
-
-// === Callback per la registrazione ===
+// === Callback per risposta registrazione ===
 static void registration_response_handler(coap_message_t *response) {
   const uint8_t *chunk;
   if (response == NULL) {
-    LOG_ERR("Registration timeout\n");
+    LOG_ERR("[Light] Registration timed out - no response\n");
     return;
   }
+
+  LOG_INFO("[Light] Registration response code: %d\n", response->code);
+
   int len = coap_get_payload(response, &chunk);
-  char payload[len + 1];
-  memcpy(payload, chunk, len);
-  payload[len] = '\0';
+  if (len > 0 && chunk != NULL) {
+    char payload[len + 1];
+    memcpy(payload, chunk, len);
+    payload[len] = '\0';
+    LOG_INFO("[Light] Payload: %s\n", payload);
+  }
 
   if (response->code == REGISTRATION_ACK_CODE) {
     registered = 1;
-    LOG_INFO("Registration successful\n");
+    LOG_INFO("[Light] Registration successful!\n");
   } else {
-    LOG_WARN("Registration failed\n");
+    LOG_WARN("[Light] Registration failed with code: %d\n", response->code);
   }
 }
 
-PROCESS_THREAD(light_sensor_main_process, ev, data)
-{
-  static coap_endpoint_t server_ep;
-  static coap_message_t registration_request[1];
-  static struct etimer registration_timer;
+PROCESS_THREAD(light_sensor_main_process, ev, data) {
+  static struct etimer timer;
+  static coap_endpoint_t server_ep, actuator_ep;
+  static coap_message_t request[1], led_request[1];
+  static char led_payload[2];
+  static int retry;
 
   PROCESS_BEGIN();
+
   coap_engine_init();
 
-  // Aspetta rete
-  LOG_INFO("[LightSensor] Waiting for network...\n");
-  etimer_set(&registration_timer, CLOCK_SECOND * 10);
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&registration_timer));
+  LOG_INFO("[Light] Waiting for network...\n");
+  etimer_set(&timer, CLOCK_SECOND * 10);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
 
-  // Registrazione
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
-  while (!registered && registration_retry_count < MAX_REGISTRATION_RETRY) {
-    coap_init_message(registration_request, COAP_TYPE_CON, COAP_POST, 0);
-    coap_set_header_uri_path(registration_request, "/" REGISTRATION_RESOURCE_PATH);
+  coap_endpoint_parse(ACTUATOR_EP, strlen(ACTUATOR_EP), &actuator_ep);
+
+  registered = 0;
+  retry = 0;
+
+  while (retry < MAX_REGISTRATION_RETRY && !registered) {
+    coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
+    coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);
 
     cJSON *root = cJSON_CreateObject();
+    if (root == NULL) {
+      LOG_ERR("[Light] Failed to create JSON object\n");
+      PROCESS_EXIT();
+    }
+
     cJSON_AddStringToObject(root, "s", "light_sensor");
-    cJSON *ss_array = cJSON_CreateArray();
-    cJSON_AddItemToArray(ss_array, cJSON_CreateString("light"));
-    cJSON_AddItemToObject(root, "ss", ss_array);
+    cJSON *resources = cJSON_CreateArray();
+    if (resources == NULL) {
+      LOG_ERR("[Light] Failed to create JSON array\n");
+      cJSON_Delete(root);
+      PROCESS_EXIT();
+    }
+    cJSON_AddItemToArray(resources, cJSON_CreateString("light"));
+    cJSON_AddItemToObject(root, "ss", resources);
+    cJSON_AddNumberToObject(root, "t", SENSOR_SAMPLE_INTERVAL);
+
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
-    coap_set_payload(registration_request, (uint8_t *)payload, strlen(payload));
-    LOG_INFO("Sending registration...\n");
+    if (payload == NULL) {
+      LOG_ERR("[Light] Failed to generate payload\n");
+      PROCESS_EXIT();
+    }
 
-    COAP_BLOCKING_REQUEST(&server_ep, registration_request, registration_response_handler);
+    LOG_INFO("[Light] Registration payload: %s\n", payload);
+    coap_set_payload(request, (uint8_t *)payload, strlen(payload));
+    COAP_BLOCKING_REQUEST(&server_ep, request, registration_response_handler);
+    free(payload);
 
     if (!registered) {
-      registration_retry_count++;
-      etimer_set(&registration_timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
-      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&registration_timer));
+      retry++;
+      etimer_set(&timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
     }
   }
 
   if (!registered) {
-    LOG_ERR("Max registration attempts reached. Exiting.\n");
+    LOG_ERR("[Light] Max registration attempts reached\n");
     PROCESS_EXIT();
   }
 
-  // Attiva risorsa CoAP
-  static struct etimer resource_timer;
-  etimer_set(&resource_timer, CLOCK_SECOND / 2);
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&resource_timer));
+  // Attiva risorsa
   coap_activate_resource(&res_light, "light");
 
-  LOG_INFO("System ready. Waiting for button events...\n");
+  LOG_INFO("[Light] System ready\n");
 
+  // Inizio ciclo principale
   while (1) {
     PROCESS_YIELD();
 
     if (ev == button_hal_press_event && light == 0) {
-      LOG_INFO("Button pressed: activating light\n");
+      LOG_INFO("[Light] Button pressed: activating light\n");
       light = 1;
-      send_light_state_to_actuator(light);
+
+      coap_init_message(led_request, COAP_TYPE_CON, COAP_POST, 0);
+      coap_set_header_uri_path(led_request, "/led");
+      snprintf(led_payload, sizeof(led_payload), "%d", light);
+      coap_set_payload(led_request, (uint8_t *)led_payload, strlen(led_payload));
+      COAP_BLOCKING_REQUEST(&actuator_ep, led_request, NULL);
+
       res_light.trigger();
 
-      etimer_set(&monitoring_timer, CLOCK_SECOND * 10);
+      etimer_set(&timer, CLOCK_SECOND * 10);
       int exit_monitor = 0;
 
       while (!exit_monitor) {
         PROCESS_YIELD();
 
         if (ev == button_hal_press_event) {
-          LOG_INFO("Button pressed again: deactivating light\n");
+          LOG_INFO("[Light] Button pressed again: deactivating light\n");
           light = 0;
-          send_light_state_to_actuator(light);
+
+          coap_init_message(led_request, COAP_TYPE_CON, COAP_POST, 0);
+          coap_set_header_uri_path(led_request, "/led");
+          snprintf(led_payload, sizeof(led_payload), "%d", light);
+          coap_set_payload(led_request, (uint8_t *)led_payload, strlen(led_payload));
+          COAP_BLOCKING_REQUEST(&actuator_ep, led_request, NULL);
+
           res_light.trigger();
           exit_monitor = 1;
-        } else if (etimer_expired(&monitoring_timer)) {
+
+        } else if (etimer_expired(&timer)) {
           int decision = random_rand() % 2;
-          LOG_INFO("Timeout expired. Random decision: %d\n", decision);
+          LOG_INFO("[Light] Timeout expired, random decision: %d\n", decision);
+
           if (decision == 1) {
-            LOG_INFO("Deactivating light after timeout\n");
+            LOG_INFO("[Light] Deactivating after timeout\n");
             light = 0;
-            send_light_state_to_actuator(light);
+
+            coap_init_message(led_request, COAP_TYPE_CON, COAP_POST, 0);
+            coap_set_header_uri_path(led_request, "/led");
+            snprintf(led_payload, sizeof(led_payload), "%d", light);
+            coap_set_payload(led_request, (uint8_t *)led_payload, strlen(led_payload));
+            COAP_BLOCKING_REQUEST(&actuator_ep, led_request, NULL);
+
             res_light.trigger();
             exit_monitor = 1;
+
           } else {
-            LOG_INFO("Keeping light active after timeout\n");
-            etimer_reset(&monitoring_timer);
+            LOG_INFO("[Light] Keeping light active\n");
+            etimer_reset(&timer);
           }
         }
       }
