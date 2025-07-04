@@ -21,14 +21,11 @@ static coap_endpoint_t temp_ep, hum_ep;
 static coap_observee_t *obs_temp = NULL;
 static coap_observee_t *obs_hum = NULL;
 
-// === Callback risposta CoAP ===
-
 void temp_response_handler(coap_message_t *response) {
   if (!response) {
     LOG_WARN("[Temp] No response received\n");
     return;
   }
-
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
   if (len > 0) {
@@ -40,11 +37,7 @@ void temp_response_handler(coap_message_t *response) {
     if (sscanf(buffer, "%f", &value) == 1) {
       LOG_INFO("[Temp] Parsed value: %.2f°C\n", value);
       logic_set_temp(value);
-    } else {
-      LOG_WARN("[Temp] Failed to parse float from: %s\n", buffer);
     }
-  } else {
-    LOG_WARN("[Temp] Empty payload\n");
   }
 }
 
@@ -53,10 +46,8 @@ void hum_response_handler(coap_message_t *response) {
     LOG_WARN("[Hum] No response received\n");
     return;
   }
-
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-  
   if (len > 0) {
     char buffer[64];
     memcpy(buffer, chunk, len);
@@ -66,15 +57,9 @@ void hum_response_handler(coap_message_t *response) {
     if (sscanf(buffer, "%f", &value) == 1) {
       LOG_INFO("[Hum] Parsed value: %.2f%%\n", value * 100.0f);
       logic_set_hum(value);
-    } else {
-      LOG_WARN("[Hum] Failed to parse float from: %s\n", buffer);
     }
-  } else {
-    LOG_WARN("[Hum] Empty payload\n");
   }
 }
-
-// === Callback osservazioni ===
 
 void temp_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
   LOG_INFO("[Temp] Notification received\n");
@@ -90,81 +75,18 @@ void hum_notification_handler(struct coap_observee_s *obs, void *notification, c
   }
 }
 
-// === Handler registrazione attuatore ===
-
 static void registration_handler(coap_message_t *response) {
-  LOG_INFO("Registration response received\n");
-
   registered = 0;
-
   if (!response) {
     LOG_ERR("No response to registration request\n");
     return;
   }
-
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
   if (len > 0 && chunk) {
-    LOG_INFO("Registration payload received\n");
     registered = 1;
-  } else {
-    LOG_WARN("Empty registration response\n");
   }
 }
-
-// === Discovery servizi ===
-
-static int discover_services() {
-  static coap_endpoint_t disc_ep;
-  static coap_message_t req[1];
-  static coap_message_t *response = NULL;
-  const uint8_t *chunk;
-  int len;
-  char payload[128];
-
-  const char *services[] = {"predt", "predh"};
-  char *ip_targets[] = {temp_ip, hum_ip};
-  coap_endpoint_t *ep_targets[] = {&temp_ep, &hum_ep};
-
-  coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep);
-
-  for (int i = 0; i < 2; i++) {
-    char uri[32];
-    snprintf(uri, sizeof(uri), "/services/%s", services[i]);
-
-    coap_init_message(req, COAP_TYPE_CON, COAP_GET, 0);
-    coap_set_header_uri_path(req, uri);
-
-    LOG_INFO("Sending GET request to %s\n", uri);
-
-    response = NULL;
-    COAP_BLOCKING_REQUEST(&disc_ep, req, response);
-
-    response = coap_get_last_response();
-    if (!response) {
-      LOG_WARN("No response received for service %s\n", services[i]);
-      return 0;
-    }
-
-    len = coap_get_payload(response, &chunk);
-    if (len <= 0 || len >= sizeof(payload)) {
-      LOG_WARN("Invalid or empty response for %s\n", services[i]);
-      return 0;
-    }
-
-    memcpy(payload, chunk, len);
-    payload[len] = '\0';
-
-    LOG_INFO("Received IP for %s: %s\n", services[i], payload);
-
-    snprintf(ip_targets[i], 64, "%s", payload);
-    coap_endpoint_parse(ip_targets[i], strlen(ip_targets[i]), ep_targets[i]);
-  }
-
-  return 1;
-}
-
-// === Processo principale ===
 
 PROCESS_THREAD(actuator_process, ev, data)
 {
@@ -183,8 +105,6 @@ PROCESS_THREAD(actuator_process, ev, data)
   LOG_INFO("Waiting 10s for network stabilization\n");
   etimer_set(&init_timer, CLOCK_SECOND * 10);
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
-
-  // === Registrazione servizi attuatore ===
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &reg_ep);
 
@@ -224,10 +144,59 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   LOG_INFO("Registration successful!\n");
 
-  // === Discovery + osservazione ===
-
+  // === INLINE SERVICE DISCOVERY ===
   retry = 0;
-  while (retry < 5 && !discover_services()) {
+  while (retry < 5) {
+    static coap_endpoint_t disc_ep;
+    static coap_message_t disc_req[1];
+    static coap_message_t *response = NULL;
+    const uint8_t *chunk;
+    int len;
+    char payload[128];
+
+    const char *services[] = {"predt", "predh"};
+    char *ip_targets[] = {temp_ip, hum_ip};
+    coap_endpoint_t *ep_targets[] = {&temp_ep, &hum_ep};
+
+    coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep);
+
+    int success = 1;
+
+    for (int i = 0; i < 2; i++) {
+      char uri[32];
+      snprintf(uri, sizeof(uri), "/services/%s", services[i]);
+
+      coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
+      coap_set_header_uri_path(disc_req, uri);
+
+      LOG_INFO("Sending GET request to %s\n", uri);
+      response = NULL;
+      COAP_BLOCKING_REQUEST(&disc_ep, disc_req, registration_handler);
+      response = coap_get_last_response();
+
+      if (!response) {
+        LOG_WARN("No response received for service %s\n", services[i]);
+        success = 0;
+        break;
+      }
+
+      len = coap_get_payload(response, &chunk);
+      if (len <= 0 || len >= sizeof(payload)) {
+        LOG_WARN("Invalid or empty response for %s\n", services[i]);
+        success = 0;
+        break;
+      }
+
+      memcpy(payload, chunk, len);
+      payload[len] = '\0';
+
+      LOG_INFO("Received IP for %s: %s\n", services[i], payload);
+      snprintf(ip_targets[i], 64, "%s", payload);
+      coap_endpoint_parse(ip_targets[i], strlen(ip_targets[i]), ep_targets[i]);
+    }
+
+    if (success) break;
+
     retry++;
     LOG_WARN("Discovery failed. Retrying in 10 seconds (%d/5)...\n", retry);
     etimer_set(&init_timer, CLOCK_SECOND * 10);
