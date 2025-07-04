@@ -22,65 +22,46 @@ static coap_observee_t *obs_temp = NULL;
 static coap_observee_t *obs_hum = NULL;
 
 void temp_response_handler(coap_message_t *response) {
-  if (!response) {
-    LOG_WARN("[Temp] No response received\n");
-    return;
-  }
+  if (!response) return;
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
   if (len > 0) {
     char buffer[64];
     memcpy(buffer, chunk, len);
     buffer[len] = '\0';
-    LOG_INFO("[Temp] Notification payload: %s\n", buffer);
     float value;
     if (sscanf(buffer, "%f", &value) == 1) {
-      LOG_INFO("[Temp] Parsed value: %.2f°C\n", value);
       logic_set_temp(value);
     }
   }
 }
 
 void hum_response_handler(coap_message_t *response) {
-  if (!response) {
-    LOG_WARN("[Hum] No response received\n");
-    return;
-  }
+  if (!response) return;
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
   if (len > 0) {
     char buffer[64];
     memcpy(buffer, chunk, len);
     buffer[len] = '\0';
-    LOG_INFO("[Hum] Notification payload: %s\n", buffer);
     float value;
     if (sscanf(buffer, "%f", &value) == 1) {
-      LOG_INFO("[Hum] Parsed value: %.2f%%\n", value * 100.0f);
       logic_set_hum(value);
     }
   }
 }
 
 void temp_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
-  LOG_INFO("[Temp] Notification received\n");
-  if (notification) {
-    temp_response_handler((coap_message_t *)notification);
-  }
+  if (notification) temp_response_handler((coap_message_t *)notification);
 }
 
 void hum_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
-  LOG_INFO("[Hum] Notification received\n");
-  if (notification) {
-    hum_response_handler((coap_message_t *)notification);
-  }
+  if (notification) hum_response_handler((coap_message_t *)notification);
 }
 
 static void registration_handler(coap_message_t *response) {
   registered = 0;
-  if (!response) {
-    LOG_ERR("No response to registration request\n");
-    return;
-  }
+  if (!response) return;
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
   if (len > 0 && chunk) {
@@ -97,20 +78,15 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   PROCESS_BEGIN();
 
-  LOG_INFO("Actuator process started\n");
-
   coap_engine_init();
   button_hal_init();
 
-  LOG_INFO("Waiting 10s for network stabilization\n");
   etimer_set(&init_timer, CLOCK_SECOND * 10);
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &reg_ep);
 
   while (!registered && retry < MAX_REGISTRATION_RETRY) {
-    LOG_INFO("Attempting registration (%d/%d)\n", retry + 1, MAX_REGISTRATION_RETRY);
-
     coap_init_message(req, COAP_TYPE_CON, COAP_POST, 0);
     coap_set_header_uri_path(req, "/" REGISTRATION_RESOURCE_PATH);
 
@@ -131,35 +107,28 @@ PROCESS_THREAD(actuator_process, ev, data)
 
     if (!registered) {
       retry++;
-      LOG_WARN("Registration failed. Retrying in %d seconds...\n", REGISTRATION_WAIT_SECONDS);
       etimer_set(&init_timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
       PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
     }
   }
 
   if (!registered) {
-    LOG_ERR("Registration failed after %d attempts. Exiting process.\n", MAX_REGISTRATION_RETRY);
     PROCESS_EXIT();
   }
 
-  LOG_INFO("Registration successful!\n");
-
-  // === INLINE SERVICE DISCOVERY ===
+  // Inline service discovery
   retry = 0;
   while (retry < 5) {
     static coap_endpoint_t disc_ep;
     static coap_message_t disc_req[1];
-    static coap_message_t *response = NULL;
     const uint8_t *chunk;
     int len;
     char payload[128];
-
     const char *services[] = {"predt", "predh"};
     char *ip_targets[] = {temp_ip, hum_ip};
     coap_endpoint_t *ep_targets[] = {&temp_ep, &hum_ep};
 
     coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep);
-
     int success = 1;
 
     for (int i = 0; i < 2; i++) {
@@ -169,20 +138,11 @@ PROCESS_THREAD(actuator_process, ev, data)
       coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
       coap_set_header_uri_path(disc_req, uri);
 
-      LOG_INFO("Sending GET request to %s\n", uri);
-      response = NULL;
       COAP_BLOCKING_REQUEST(&disc_ep, disc_req, registration_handler);
-      response = coap_get_last_response();
 
-      if (!response) {
-        LOG_WARN("No response received for service %s\n", services[i]);
-        success = 0;
-        break;
-      }
-
-      len = coap_get_payload(response, &chunk);
+      // Usa chunk direttamente
+      len = coap_get_payload(disc_req, &chunk);
       if (len <= 0 || len >= sizeof(payload)) {
-        LOG_WARN("Invalid or empty response for %s\n", services[i]);
         success = 0;
         break;
       }
@@ -190,52 +150,35 @@ PROCESS_THREAD(actuator_process, ev, data)
       memcpy(payload, chunk, len);
       payload[len] = '\0';
 
-      LOG_INFO("Received IP for %s: %s\n", services[i], payload);
-      snprintf(ip_targets[i], 64, "%s", payload);
+      // ✅ Safe strncpy
+      strncpy(ip_targets[i], payload, sizeof(ip_targets[i]) - 1);
+      ip_targets[i][sizeof(ip_targets[i]) - 1] = '\0';
       coap_endpoint_parse(ip_targets[i], strlen(ip_targets[i]), ep_targets[i]);
     }
 
     if (success) break;
 
     retry++;
-    LOG_WARN("Discovery failed. Retrying in 10 seconds (%d/5)...\n", retry);
     etimer_set(&init_timer, CLOCK_SECOND * 10);
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
   }
 
   if (retry >= 5) {
-    LOG_ERR("Could not discover required services after multiple attempts\n");
     PROCESS_EXIT();
   }
-
-  LOG_INFO("Starting observation of discovered services\n");
 
   obs_temp = coap_obs_request_registration(&temp_ep, "predt", temp_notification_handler, NULL);
   obs_hum = coap_obs_request_registration(&hum_ep, "predh", hum_notification_handler, NULL);
 
   if (!obs_temp || !obs_hum) {
-    LOG_ERR("Failed to set up observations. Exiting process.\n");
     PROCESS_EXIT();
   }
 
-  LOG_INFO("Observations set up successfully.\n");
-
   while (1) {
     PROCESS_WAIT_EVENT();
-
     if (ev == button_hal_press_event) {
-      LOG_WARN("Button pressed: Shutdown initiated\n");
-
-      if (obs_temp) {
-        coap_obs_remove_observee(obs_temp);
-        LOG_INFO("Temperature observation removed\n");
-      }
-      if (obs_hum) {
-        coap_obs_remove_observee(obs_hum);
-        LOG_INFO("Humidity observation removed\n");
-      }
-
-      LOG_INFO("Shutdown complete. Exiting actuator process\n");
+      if (obs_temp) coap_obs_remove_observee(obs_temp);
+      if (obs_hum) coap_obs_remove_observee(obs_hum);
       process_exit(&actuator_process);
       PROCESS_EXIT();
     }
