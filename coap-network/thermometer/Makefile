@@ -1,4 +1,4 @@
-CONTIKI_PROJECT = smart-thermometer-flat
+CONTIKI_PROJECT = main
 all: $(CONTIKI_PROJECT)
 
 PROJECT_SOURCEFILES += \
@@ -18,14 +18,14 @@ CFLAGS += -I./coap
 
 PROJECTDIRS += sensor coap
 
-MODULES_REL+=/home/iot_ubuntu_intel/.local/lib/python3.10/site-packages/emlearn
+MODULES_REL+= ../cJSON-master
+MODULES_REL+=/home/iot_ubuntu_arm/.local/lib/python3.10/site-packages/emlearn
 TARGET_LIBFILES+=-lm
-INC+=/home/iot_ubuntu_intel/.local/lib/python3.10/site-packages/emlearn
+INC+=/home/iot_ubuntu_arm/.local/lib/python3.10/site-packages/emlearn
 
-MAKE_ROUTING = MAKE_ROUTING_RPL_CLASSIC
 MAKE_NET = MAKE_NET_IPV6
 
-CONTIKI = ../..
+CONTIKI = /home/iot_ubuntu_arm/contiki-ng
 $(shell mkdir -p build/cooja/obj/sensor build/cooja/obj/coap)
 
 # Include the CoAP implementation
