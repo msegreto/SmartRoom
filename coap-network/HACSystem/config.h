@@ -1,4 +1,3 @@
-// config.h
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -7,9 +6,11 @@
 #define REGISTRATION_ACK_CODE CREATED_2_01
 #define MAX_REGISTRATION_RETRY 3
 #define REGISTRATION_WAIT_SECONDS 5
-#define OBS_HUM_PATH  "service?resource=predh"
-#define OBS_TEMP_PATH "service?resource=predt"
 
+// Path e query separati per la discovery
+#define SERVICE_DISCOVERY_PATH "service"
+#define QUERY_TEMP "resource=predt"
+#define QUERY_HUM  "resource=predh"
 
 #define DEFAULT_THRESHOLD_MIN 20.0
 #define DEFAULT_THRESHOLD_MAX 28.0

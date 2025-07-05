@@ -227,8 +227,9 @@ while (retry < 5) {
     success = 0;
   } else {
     coap_init_message(disc_req_temp, COAP_TYPE_CON, COAP_GET, 0);
-    coap_set_header_uri_path(disc_req_temp, "/" OBS_TEMP_PATH);
-    LOG_INFO("[DISCOVERY] Sending GET to %s\n", OBS_TEMP_PATH);
+    coap_set_header_uri_path(disc_req_temp, SERVICE_DISCOVERY_PATH);
+    coap_set_header_uri_query(disc_req_temp, QUERY_TEMP);
+    LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_TEMP);
     COAP_BLOCKING_REQUEST(&disc_ep_temp, disc_req_temp, discovery_response_handler_temp);
 
     if (strlen(temp_service_payload) == 0) {
@@ -248,8 +249,9 @@ while (retry < 5) {
     success = 0;
   } else {
     coap_init_message(disc_req_hum, COAP_TYPE_CON, COAP_GET, 0);
-    coap_set_header_uri_path(disc_req_hum, "/" OBS_HUM_PATH);
-    LOG_INFO("[DISCOVERY] Sending GET to %s\n", OBS_HUM_PATH);
+    coap_set_header_uri_path(disc_req_hum, SERVICE_DISCOVERY_PATH);
+    coap_set_header_uri_query(disc_req_hum, QUERY_HUM);
+    LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_HUM);
     COAP_BLOCKING_REQUEST(&disc_ep_hum, disc_req_hum, discovery_response_handler_hum);
 
     if (strlen(hum_service_payload) == 0) {
@@ -261,6 +263,8 @@ while (retry < 5) {
       coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
       LOG_INFO("[DISCOVERY] Parsed hum IP: %s\n", hum_ip);
     }
+  }
+
   }
 
   if (success) {
