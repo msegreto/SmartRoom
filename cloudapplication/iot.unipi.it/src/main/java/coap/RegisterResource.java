@@ -28,10 +28,16 @@ public class RegisterResource extends CoapResource {
         
         DeviceRegistration reg = parseRegistrationJSON(payload);
         if (reg != null) {
-            // Save the registration in the database
-            if(!Database.saveDeviceRegistration(nodeIP, reg.deviceId, reg.services)){
-                exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Failed to save registration");
-                System.err.println("[RegisterResource] Database save failed for device " + reg.deviceId);
+            try {
+                // Save the registration in the database
+                if(!Database.saveDeviceRegistration(nodeIP, reg.deviceId, reg.services)){
+                    exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Failed to save registration");
+                    System.err.println("[RegisterResource] Database save failed for device " + reg.deviceId);
+                    return;
+                }
+            } catch (Exception e) {
+                exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Database error: " + e.getMessage());
+                System.err.println("[RegisterResource] Database exception for device " + reg.deviceId + ": " + e.getMessage());
                 return;
             }
             

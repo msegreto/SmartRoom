@@ -21,7 +21,7 @@ public class Database {
     static final String JDBC_USER = "admin";
     static final String JDBC_PASSWORD = "iotubuntu";
 
-    public static void createDatabase() {
+    public static void createDatabase() throws SQLException {
         String JDBC_URL1 = "jdbc:mysql://localhost:3306/";
         final String DATABASE_NAME = "smartroom";
         String createDatabaseSQL = "CREATE DATABASE IF NOT EXISTS " + DATABASE_NAME;   
@@ -35,7 +35,7 @@ public class Database {
         }
     }
 
-    public static void deleteDatabase() {
+    public static void deleteDatabase() throws SQLException {
         final String DATABASE_NAME = "smartroom";
         String deleteDatabaseSQL = "DROP DATABASE IF EXISTS " + DATABASE_NAME;
 
@@ -52,7 +52,7 @@ public class Database {
         return DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
     }
 
-    public static void createTableIPV6() {
+    public static void createTableIPV6() throws SQLException {
         String createTableSQL = "CREATE TABLE IF NOT EXISTS ipv6_addresses (" +
                                 "id INT AUTO_INCREMENT PRIMARY KEY, " +
                                 "nodeip VARCHAR(89) NOT NULL, " +
@@ -68,7 +68,7 @@ public class Database {
         }
     }
 
-    public static Boolean saveDeviceRegistration(String nodeIP, String nodeName, String[] resources) {
+    public static Boolean saveDeviceRegistration(String nodeIP, String nodeName, String[] resources) throws SQLException {
         String insertSQL = "INSERT INTO ipv6_addresses (nodeip, nodename, resource) VALUES (?, ?, ?)";
         
         try (Connection conn = getConnection();
@@ -92,7 +92,7 @@ public class Database {
         }
     }
     
-    public static String getResourceIP(String resourceName) {
+    public static String getResourceIP(String resourceName) throws SQLException {
         String selectSQL = "SELECT nodeip FROM ipv6_addresses WHERE resource = ? LIMIT 1";
         
         try (Connection conn = getConnection();

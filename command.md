@@ -1,2 +1,2 @@
-- cd examples/rpl-border-router
-- make TARGET=cooja connect-router-cooja
+cd examples/rpl-border-router
+make TARGET=cooja connect-router-cooja

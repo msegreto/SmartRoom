@@ -14,7 +14,6 @@ public class MyServer extends CoapServer {
             response.setPayload("<value>10</value>");
         } else if (exchange.getRequestOptions().getAccept() == MediaTypeRegistry.APPLICATION_JSON) {
             response.getOptions().setContentFormat(MediaTypeRegistry.APPLICATION_JSON);
-            // ...
         }
         exchange.respond(response);
     }

@@ -9,7 +9,7 @@
 
 // Registration settings
 #define REGISTRATION_ACK_CODE CREATED_2_01
-#define REGISTRATION_WAIT_SECONDS 5
+#define REGISTRATION_WAIT_SECONDS 7
 
 // Sample interval for sensors/actuators
 #define MAX_REGISTRATION_RETRY 5

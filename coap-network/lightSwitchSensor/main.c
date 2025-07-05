@@ -23,34 +23,26 @@ extern coap_resource_t res_light;
 static int registered = 0;
 
 static void client_chunk_handler(coap_message_t *response) {
-  LOG_INFO("[Light] === RESPONSE HANDLER CALLED ===\n");
-
   const uint8_t *chunk;
   if (response == NULL) {
-    LOG_ERR("[Light] Registration timed out - no response received\n");
+    LOG_ERR("[Light] Registration timeout\n");
     return;
   }
 
-  LOG_INFO("[Light] Response received! Code: %d\n", response->code);
-
   int len = coap_get_payload(response, &chunk);
-  if (len <= 0 || chunk == NULL) {
-    LOG_WARN("[Light] Empty or invalid payload received (len=%d)\n", len);
-  } else {
+  if (len > 0 && chunk != NULL) {
     char payload[len + 1];
     memcpy(payload, chunk, len);
     payload[len] = '\0';
-    LOG_INFO("[Light] Response payload: '%s'\n", payload);
+    LOG_INFO("[Light] Response: %s\n", payload);
   }
 
   if (response->code == REGISTRATION_ACK_CODE) {
     registered = 1;
-    LOG_INFO("[Light] Registration successful!\n");
+    LOG_INFO("[Light] Registration successful\n");
   } else {
-    LOG_WARN("[Light] Registration failed with code: %d\n", response->code);
+    LOG_WARN("[Light] Registration failed: %d\n", response->code);
   }
-
-  LOG_INFO("[Light] === RESPONSE HANDLER END ===\n");
 }
 
 PROCESS_THREAD(light_sensor_main_process, ev, data) {
@@ -66,7 +58,7 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
   LOG_INFO("[Light] Waiting for network establishment...\n");
   etimer_set(&timer, CLOCK_SECOND * 10);
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-  LOG_INFO("[Light] Network wait complete, starting registration\n");
+  LOG_INFO("[Light] Starting registration\n");
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
 
@@ -79,14 +71,14 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
 
     cJSON *root = cJSON_CreateObject();
     if (root == NULL) {
-      LOG_ERR("[Light] Failed to create JSON object\n");
+      LOG_ERR("[Light] JSON creation failed\n");
       PROCESS_EXIT();
     }
 
     cJSON_AddStringToObject(root, "s", "light_sensor");
     cJSON *resources = cJSON_CreateArray();
     if (resources == NULL) {
-      LOG_ERR("[Light] Failed to create JSON array\n");
+      LOG_ERR("[Light] JSON array creation failed\n");
       cJSON_Delete(root);
       PROCESS_EXIT();
     }
@@ -97,13 +89,12 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
     cJSON_Delete(root);
 
     if (payload == NULL) {
-      LOG_ERR("[Light] Failed to generate payload\n");
+      LOG_ERR("[Light] Payload generation failed\n");
       PROCESS_EXIT();
     }
 
-    LOG_INFO("[Light] JSON payload (len=%zu): %s\n", strlen(payload), payload);
+    LOG_INFO("[Light] Attempt %d: %s\n", retry + 1, payload);
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
-    LOG_INFO("[Light] Sending registration request...\n");
 
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
     free(payload);
