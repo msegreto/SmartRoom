@@ -34,14 +34,14 @@ static void print_hex(const uint8_t *data, int len) {
 
 void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
   if (!response || !buffer) {
-    LOG_WARN("[Discovery] No response or buffer null\n");
+    LOG_WARN("[DISCOVERY] No response or buffer null\n");
     return;
   }
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
   if (len <= 0 || len >= buffer_len) {
-    LOG_WARN("[Discovery] Invalid or empty payload\n");
+    LOG_WARN("[DISCOVERY] Invalid or empty payload\n");
     buffer[0] = '\0';
     return;
   }
@@ -51,14 +51,14 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
   
   
   if (strstr(buffer, "not found") != NULL) {
-    LOG_WARN("[Discovery] Resource not found in response: %s\n", buffer);
+    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", buffer);
     buffer[0] = '\0';  
     return;
   }
 
   // Stampa solo se la risposta è valida
   print_hex(chunk, len);
-  LOG_INFO("[Discovery] Payload (STRING): %s\n", buffer);
+  LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
 }
 
 

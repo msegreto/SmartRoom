@@ -1,4 +1,0 @@
-coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
-coap_init_message(request, COAP_TYPE_CON, COAP_GET, 0);
-coap_set_header_uri_path(request, "/" OBS_HUM_PATH );
-COAP_BLOCKING_REQUEST(&server_ep, request, discovery_response_handler);

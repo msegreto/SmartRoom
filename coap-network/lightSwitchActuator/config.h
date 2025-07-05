@@ -7,4 +7,8 @@
 #define MAX_REGISTRATION_RETRY 3
 #define REGISTRATION_WAIT_SECONDS 5
 
+// Path e query separati per la discovery
+#define SERVICE_DISCOVERY_PATH "service"
+#define QUERY_LIGHT "resource=light"
+
 #endif // CONFIG_H
