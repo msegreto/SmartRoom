@@ -41,7 +41,8 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
   memcpy(buffer, chunk, len);
   buffer[len] = '\0';
 
-  LOG_INFO("[Discovery] Response payload: %s\n", buffer);
+  LOG_INFO("[Discovery] Payload (RAW): %.*s\n", len, chunk);
+  LOG_INFO("[Discovery] Payload (STRING): %s\n", buffer);
 }
 
 void discovery_response_handler_temp(coap_message_t *response) {
