@@ -18,7 +18,7 @@ EVENT_RESOURCE(res_latest,
 
 void trigger_latest_event(float value) {
     last_value = value;
-    LOG_INFO("[Prediction] Triggering prediction event, value: %.2f\n", last_value);
+    LOG_INFO("[Latest] Triggering latest event, value: %.2f\n", last_value);
     res_latest.trigger();
 }
 
@@ -33,14 +33,14 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response,
     int len = snprintf((char *)buffer, preferred_size, "%.2f", last_value);
 
     if (len > 0) {
-        LOG_INFO("[Prediction] Formatted payload: %s (len=%d)\n", buffer, len);
+        LOG_INFO("[Latest] Formatted payload: %s (len=%d)\n", buffer, len);
         coap_set_header_content_format(response, TEXT_PLAIN);  // Necessario per le notifiche
         coap_set_payload(response, buffer, len);
     } else {
-        LOG_WARN("[Prediction] Failed to format payload\n");
+        LOG_WARN("[Latest] Failed to format payload\n");
     }
 
-    LOG_INFO("[Prediction] GET request handled, content sent\n");
+    LOG_INFO("[latest] GET request handled, content sent\n");
 }
 
 
