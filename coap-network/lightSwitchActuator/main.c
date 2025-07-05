@@ -59,7 +59,6 @@ void discovery_response_handler_light(coap_message_t *response) {
   discovery_response_handler(response, light_service_payload, sizeof(light_service_payload));
 }
 
-
 void light_response_handler(coap_message_t *response) {
   if (!response) {
     LOG_WARN("[Light] No response received\n");
