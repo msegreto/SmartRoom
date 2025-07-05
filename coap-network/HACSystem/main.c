@@ -48,10 +48,19 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
 
   memcpy(buffer, chunk, len);
   buffer[len] = '\0';
+  
+  
+  if (strstr(buffer, "not found") != NULL) {
+    LOG_WARN("[Discovery] Resource not found in response: %s\n", buffer);
+    buffer[0] = '\0';  
+    return;
+  }
 
+  // Stampa solo se la risposta è valida
   print_hex(chunk, len);
   LOG_INFO("[Discovery] Payload (STRING): %s\n", buffer);
 }
+
 
 void discovery_response_handler_temp(coap_message_t *response) {
   discovery_response_handler(response, temp_service_payload, sizeof(temp_service_payload));
@@ -238,10 +247,12 @@ PROCESS_THREAD(actuator_process, ev, data)
       if (strlen(temp_service_payload) == 0) {
         LOG_WARN("[DISCOVERY] Empty or invalid response for predt\n");
         success = 0;
+      } else if (!coap_endpoint_parse(temp_service_payload, strlen(temp_service_payload), &temp_ep)) {
+        LOG_WARN("[DISCOVERY] Failed to parse endpoint for predt\n");
+        success = 0;
       } else {
         strncpy(temp_ip, temp_service_payload, sizeof(temp_ip) - 1);
         temp_ip[sizeof(temp_ip) - 1] = '\0';
-        coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
         LOG_INFO("[DISCOVERY] Parsed temp IP: %s\n", temp_ip);
       }
     }
@@ -259,10 +270,12 @@ PROCESS_THREAD(actuator_process, ev, data)
       if (strlen(hum_service_payload) == 0) {
         LOG_WARN("[DISCOVERY] Empty or invalid response for predh\n");
         success = 0;
+      } else if (!coap_endpoint_parse(hum_service_payload, strlen(hum_service_payload), &hum_ep)) {
+        LOG_WARN("[DISCOVERY] Failed to parse endpoint for predh\n");
+        success = 0;
       } else {
         strncpy(hum_ip, hum_service_payload, sizeof(hum_ip) - 1);
         hum_ip[sizeof(hum_ip) - 1] = '\0';
-        coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
         LOG_INFO("[DISCOVERY] Parsed hum IP: %s\n", hum_ip);
       }
     }
