@@ -4,8 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "sys/log.h"
 #include "logic.h"
+
+#define LOG_MODULE "ResControl"
+#define LOG_LEVEL LOG_LEVEL_APP
+#include "sys/log.h"
 
 static float status = 0;
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
