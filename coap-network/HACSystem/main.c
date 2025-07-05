@@ -198,7 +198,7 @@ PROCESS_THREAD(actuator_process, ev, data)
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
     LOG_INFO("[HACSystem] Sending registration request...\n");
 
-    COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
+    COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler_temp);
     free(payload);
 
     if (!registered) {
@@ -214,68 +214,62 @@ PROCESS_THREAD(actuator_process, ev, data)
   }
 
   LOG_INFO("Registration successful!\n");
-
+  LOG_INFO("[HACSystem] Starting service discovery for temperature and humidity\n");
   retry = 0;
 while (retry < 5) {
-  static coap_endpoint_t disc_ep;
-  static coap_message_t disc_req[1];
+  static coap_endpoint_t disc_ep_temp, disc_ep_hum;
+  static coap_message_t disc_req_temp[1], disc_req_hum[1];
   int success = 1;
 
-  LOG_INFO("[HACSystem] === DISCOVERY ROUND %d ===\n", retry + 1);
-
-  // ---- DISCOVERY predt ----
-  int parse_ok = coap_endpoint_parse(OBS_TEMP_URI, strlen(OBS_TEMP_URI), &disc_ep);
-  if (!parse_ok) {
-    LOG_ERR("Failed to parse OBS_TEMP_URI: %s\n", OBS_TEMP_URI);
+  // --- Discovery predt ---
+  if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_temp)) {
+    LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predt\n");
     success = 0;
   } else {
-    LOG_INFO("Parsed OBS_TEMP_URI OK: %s\n", OBS_TEMP_URI);
-
-    coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-    LOG_INFO("[HACSystem] Sending GET to predt endpoint...\n");
-
-    COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_temp);
+    coap_init_message(disc_req_temp, COAP_TYPE_CON, COAP_GET, 0);
+    coap_set_header_uri_path(disc_req_temp, "/" OBS_TEMP_PATH);
+    LOG_INFO("[DISCOVERY] Sending GET to %s\n", OBS_TEMP_PATH);
+    COAP_BLOCKING_REQUEST(&disc_ep_temp, disc_req_temp, discovery_response_handler_temp);
 
     if (strlen(temp_service_payload) == 0) {
-      LOG_WARN("[HACSystem] Empty or invalid discovery payload for predt\n");
+      LOG_WARN("[DISCOVERY] Empty or invalid response for predt\n");
       success = 0;
     } else {
       strncpy(temp_ip, temp_service_payload, sizeof(temp_ip) - 1);
       temp_ip[sizeof(temp_ip) - 1] = '\0';
-      LOG_INFO("Temp IP discovered: %s\n", temp_ip);
+      coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
+      LOG_INFO("[DISCOVERY] Parsed temp IP: %s\n", temp_ip);
     }
   }
 
-  // ---- DISCOVERY predh ----
-  parse_ok = coap_endpoint_parse(OBS_HUM_URI, strlen(OBS_HUM_URI), &disc_ep);
-  if (!parse_ok) {
-    LOG_ERR("Failed to parse OBS_HUM_URI: %s\n", OBS_HUM_URI);
+  // --- Discovery predh ---
+  if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_hum)) {
+    LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predh\n");
     success = 0;
   } else {
-    LOG_INFO("Parsed OBS_HUM_URI OK: %s\n", OBS_HUM_URI);
-
-    coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-    LOG_INFO("[HACSystem] Sending GET to predh endpoint...\n");
-
-    COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_hum);
+    coap_init_message(disc_req_hum, COAP_TYPE_CON, COAP_GET, 0);
+    coap_set_header_uri_path(disc_req_hum, "/" OBS_HUM_PATH);
+    LOG_INFO("[DISCOVERY] Sending GET to %s\n", OBS_HUM_PATH);
+    COAP_BLOCKING_REQUEST(&disc_ep_hum, disc_req_hum, discovery_response_handler_hum);
 
     if (strlen(hum_service_payload) == 0) {
-      LOG_WARN("[HACSystem] Empty or invalid discovery payload for predh\n");
+      LOG_WARN("[DISCOVERY] Empty or invalid response for predh\n");
       success = 0;
     } else {
       strncpy(hum_ip, hum_service_payload, sizeof(hum_ip) - 1);
       hum_ip[sizeof(hum_ip) - 1] = '\0';
-      LOG_INFO("Hum IP discovered: %s\n", hum_ip);
+      coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
+      LOG_INFO("[DISCOVERY] Parsed hum IP: %s\n", hum_ip);
     }
   }
 
   if (success) {
-    LOG_INFO("[HACSystem] Discovery successful \n");
+    LOG_INFO("[DISCOVERY] Success \n");
     break;
   }
 
   retry++;
-  LOG_WARN("[HACSystem] Discovery failed. Retrying in 10 seconds (%d/5)...\n", retry);
+  LOG_WARN("[DISCOVERY] Failed. Retrying in 10 seconds (%d/5)...\n", retry);
   etimer_set(&init_timer, CLOCK_SECOND * 10);
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
 }
