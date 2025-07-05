@@ -23,6 +23,10 @@ static void print_hex(const uint8_t *data, int len) {
   printf("\n");
 }
 
+void discovery_response_handler_light(coap_message_t *response) {
+  discovery_response_handler(response, light_service_payload, sizeof(light_service_payload));
+}
+
 void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
   if (!response || !buffer) {
     LOG_WARN("[DISCOVERY] No response or buffer null\n");
@@ -196,7 +200,7 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
       coap_set_header_uri_path(disc_req_light, SERVICE_DISCOVERY_PATH);
       coap_set_header_uri_query(disc_req_light, QUERY_LIGHT);
       LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_LIGHT);
-      COAP_BLOCKING_REQUEST(&disc_ep_light, disc_req_light, discovery_response_handler);
+      COAP_BLOCKING_REQUEST(&disc_ep_light, disc_req_light, discovery_response_handler_light);
 
       if (strlen(light_service_payload) == 0) {
         LOG_WARN("[DISCOVERY] Empty or invalid response for light\n");
