@@ -45,7 +45,7 @@ RESOURCE(res_get_threshold,
          get_threshold_handler, NULL, NULL, NULL);
 
 
-RESOURCE(res_status,
+EVENT_RESOURCE(res_status,
          "title=\"Actuator status\";obs",
          res_get_handler,
          NULL, NULL, NULL,
