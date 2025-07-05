@@ -23,10 +23,6 @@ static void print_hex(const uint8_t *data, int len) {
   printf("\n");
 }
 
-void discovery_response_handler_light(coap_message_t *response) {
-  discovery_response_handler(response, light_service_payload, sizeof(light_service_payload));
-}
-
 void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
   if (!response || !buffer) {
     LOG_WARN("[DISCOVERY] No response or buffer null\n");
@@ -55,6 +51,11 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
   print_hex(chunk, len);
   LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
 }
+
+void discovery_response_handler_light(coap_message_t *response) {
+  discovery_response_handler(response, light_service_payload, sizeof(light_service_payload));
+}
+
 
 void light_response_handler(coap_message_t *response) {
   if (!response) {
