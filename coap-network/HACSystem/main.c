@@ -216,50 +216,70 @@ PROCESS_THREAD(actuator_process, ev, data)
   LOG_INFO("Registration successful!\n");
 
   retry = 0;
-  while (retry < 5) {
-    static coap_endpoint_t disc_ep;
-    static coap_message_t disc_req[1];
-    int success = 1;
+while (retry < 5) {
+  static coap_endpoint_t disc_ep;
+  static coap_message_t disc_req[1];
+  int success = 1;
 
-    // Discovery predh
-    coap_endpoint_parse(OBS_TEMP_URI, strlen(OBS_TEMP_URI), &disc_ep);
+  LOG_INFO("[HACSystem] === DISCOVERY ROUND %d ===\n", retry + 1);
+
+  // ---- DISCOVERY predt ----
+  int parse_ok = coap_endpoint_parse(OBS_TEMP_URI, strlen(OBS_TEMP_URI), &disc_ep);
+  if (!parse_ok) {
+    LOG_ERR("Failed to parse OBS_TEMP_URI: %s\n", OBS_TEMP_URI);
+    success = 0;
+  } else {
+    LOG_INFO("Parsed OBS_TEMP_URI OK: %s\n", OBS_TEMP_URI);
+
     coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-    LOG_INFO("[HACSystem] Sending GET request to OBS_TEMP_URI: %s\n", OBS_TEMP_URI);
+    LOG_INFO("[HACSystem] Sending GET to predt endpoint...\n");
+
     COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_temp);
 
     if (strlen(temp_service_payload) == 0) {
-      LOG_WARN("Invalid or empty response for predt\n");
+      LOG_WARN("[HACSystem] Empty or invalid discovery payload for predt\n");
       success = 0;
     } else {
       strncpy(temp_ip, temp_service_payload, sizeof(temp_ip) - 1);
       temp_ip[sizeof(temp_ip) - 1] = '\0';
-      coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
-      LOG_INFO("Parsed temp IP: %s\n", temp_ip);
+      LOG_INFO("Temp IP discovered: %s\n", temp_ip);
     }
+  }
 
-    // Discovery predh
-    coap_endpoint_parse(OBS_HUM_URI, strlen(OBS_HUM_URI), &disc_ep);
+  // ---- DISCOVERY predh ----
+  parse_ok = coap_endpoint_parse(OBS_HUM_URI, strlen(OBS_HUM_URI), &disc_ep);
+  if (!parse_ok) {
+    LOG_ERR("Failed to parse OBS_HUM_URI: %s\n", OBS_HUM_URI);
+    success = 0;
+  } else {
+    LOG_INFO("Parsed OBS_HUM_URI OK: %s\n", OBS_HUM_URI);
+
     coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-    LOG_INFO("[HACSystem] Sending GET request to OBS_HUM_URI: %s\n", OBS_HUM_URI);
+    LOG_INFO("[HACSystem] Sending GET to predh endpoint...\n");
+
     COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_hum);
 
     if (strlen(hum_service_payload) == 0) {
-      LOG_WARN("Invalid or empty response for predh\n");
+      LOG_WARN("[HACSystem] Empty or invalid discovery payload for predh\n");
       success = 0;
     } else {
       strncpy(hum_ip, hum_service_payload, sizeof(hum_ip) - 1);
       hum_ip[sizeof(hum_ip) - 1] = '\0';
-      coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
-      LOG_INFO("Parsed hum IP: %s\n", hum_ip);
+      LOG_INFO("Hum IP discovered: %s\n", hum_ip);
     }
-
-    if (success) break;
-
-    retry++;
-    LOG_WARN("[HACSystem] Discovery failed. Retrying in 10 seconds (%d/5)...\n", retry);
-    etimer_set(&init_timer, CLOCK_SECOND * 10);
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
   }
+
+  if (success) {
+    LOG_INFO("[HACSystem] Discovery successful \n");
+    break;
+  }
+
+  retry++;
+  LOG_WARN("[HACSystem] Discovery failed. Retrying in 10 seconds (%d/5)...\n", retry);
+  etimer_set(&init_timer, CLOCK_SECOND * 10);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
+}
+
 
   if (retry >= 5 || strlen(temp_ip) == 0 || strlen(hum_ip) == 0) {
     LOG_ERR("Could not discover required services or IPs are empty\n");
