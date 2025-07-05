@@ -37,7 +37,10 @@ public class ServiceResource extends CoapResource {
             String resourceIP = Database.getResourceIP(resourceName);
             
             if (resourceIP != null) {
-                String fullResourceURI = "coap://[" + resourceIP + "]:5683/" + resourceName;
+                // Costruisci l'URI completo della risorsa
+                String fullResourceURI = "coap://[" + resourceIP + "]:5683/";
+                
+                System.out.println("[ServiceResource] Found resource: " + fullResourceURI);
                 exchange.respond(ResponseCode.CONTENT, fullResourceURI, MediaTypeRegistry.TEXT_PLAIN);
                 System.out.println("[ServiceResource] Found " + resourceName + " at " + resourceIP);
             } else {

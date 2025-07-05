@@ -21,7 +21,54 @@ static coap_endpoint_t temp_ep, hum_ep;
 static coap_observee_t *obs_temp = NULL;
 static coap_observee_t *obs_hum = NULL;
 
-// === Callback risposta CoAP ===
+static char temp_service_payload[128] = "";
+static char hum_service_payload[128] = "";
+
+static void print_hex(const uint8_t *data, int len) {
+  printf("[HEX] ");
+  for (int i = 0; i < len; ++i) {
+    printf("%02X ", data[i]);
+  }
+  printf("\n");
+}
+
+void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
+  if (!response || !buffer) {
+    LOG_WARN("[DISCOVERY] No response or buffer null\n");
+    return;
+  }
+
+  const uint8_t *chunk;
+  int len = coap_get_payload(response, &chunk);
+  if (len <= 0 || len >= buffer_len) {
+    LOG_WARN("[DISCOVERY] Invalid or empty payload\n");
+    buffer[0] = '\0';
+    return;
+  }
+
+  memcpy(buffer, chunk, len);
+  buffer[len] = '\0';
+  
+  
+  if (strstr(buffer, "not found") != NULL) {
+    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", buffer);
+    buffer[0] = '\0';  
+    return;
+  }
+
+  // Stampa solo se la risposta è valida
+  print_hex(chunk, len);
+  LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
+}
+
+
+void discovery_response_handler_temp(coap_message_t *response) {
+  discovery_response_handler(response, temp_service_payload, sizeof(temp_service_payload));
+}
+
+void discovery_response_handler_hum(coap_message_t *response) {
+  discovery_response_handler(response, hum_service_payload, sizeof(hum_service_payload));
+}
 
 void temp_response_handler(coap_message_t *response) {
   if (!response) {
@@ -56,7 +103,6 @@ void hum_response_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-  
   if (len > 0) {
     char buffer[64];
     memcpy(buffer, chunk, len);
@@ -74,90 +120,54 @@ void hum_response_handler(coap_message_t *response) {
   }
 }
 
-// === Callback osservazioni ===
-
 void temp_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
   LOG_INFO("[Temp] Notification received\n");
-  if (notification) {
-    temp_response_handler((coap_message_t *)notification);
-  }
+  if (notification) temp_response_handler((coap_message_t *)notification);
 }
 
 void hum_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
   LOG_INFO("[Hum] Notification received\n");
-  if (notification) {
-    hum_response_handler((coap_message_t *)notification);
-  }
+  if (notification) hum_response_handler((coap_message_t *)notification);
 }
 
-// === Handler registrazione ===
+static void client_chunk_handler(coap_message_t *response) {
+  LOG_INFO("[HACSystem] === RESPONSE HANDLER CALLED ===\n");
 
-static void registration_handler(coap_message_t *response) {
-  LOG_INFO("Registration response received\n");
-
-  registered = 0; // Assume fallimento finché non si verifica tutto
-
-  if (!response) {
-    LOG_ERR("No response to registration request\n");
+  const uint8_t *chunk;
+  if (response == NULL) {
+    LOG_ERR("[HACSystem] Registration timed out - no response received\n");
     return;
   }
 
-  const uint8_t *chunk;
+  LOG_INFO("[HACSystem] Response received! Code: %d\n", response->code);
+
   int len = coap_get_payload(response, &chunk);
-  if (len > 0 && chunk) {
+  if (len > 0 && chunk != NULL) {
     char payload[len + 1];
     memcpy(payload, chunk, len);
     payload[len] = '\0';
-    LOG_INFO("Registration payload: %s\n", payload);
-
-    cJSON *json = cJSON_Parse(payload);
-    if (!json) {
-      LOG_ERR("Failed to parse JSON: %s\n", cJSON_GetErrorPtr());
-      return;
-    }
-
-    cJSON *temp_item = cJSON_GetObjectItemCaseSensitive(json, "temp");
-    cJSON *hum_item = cJSON_GetObjectItemCaseSensitive(json, "hum");
-
-    const char *temp_name = (cJSON_IsString(temp_item) && temp_item->valuestring) ? temp_item->valuestring : NULL;
-    const char *hum_name  = (cJSON_IsString(hum_item)  && hum_item->valuestring) ? hum_item->valuestring  : NULL;
-
-    LOG_INFO("Received resource names - temp: '%s', hum: '%s'\n",
-             temp_name ? temp_name : "NULL",
-             hum_name  ? hum_name  : "NULL");
-
-    if (!temp_name || strlen(temp_name) == 0 || strcmp(temp_name, "not_found") == 0 || //condizione da cambiare poi 
-        !hum_name || strlen(hum_name) == 0 || strcmp(hum_name, "not_found") == 0) {
-        LOG_WARN("Invalid registration response: missing, empty, or unresolved resource names. Will retry.\n");
-        cJSON_Delete(json);
-        return;
-      }
-
-    // Se siamo qui, entrambe le risorse sono valide
-    snprintf(temp_ip, sizeof(temp_ip), "coap://[fe80::203:3:3:3]:5683");
-    snprintf(hum_ip, sizeof(hum_ip), "coap://[fe80::204:4:4:4]:5683");
-
-    coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
-    coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
-
-    LOG_INFO("Parsed temp endpoint: %s\n", temp_ip);
-    LOG_INFO("Parsed hum endpoint: %s\n", hum_ip);
-
-    registered = 1;
-    cJSON_Delete(json);
+    LOG_INFO("[HACSystem] Response payload: '%s'\n", payload);
   } else {
-    LOG_WARN("Empty registration response\n");
+    LOG_WARN("[HACSystem] Empty or invalid payload received (len=%d)\n", len);
   }
-}
 
-// === Processo principale ===
+  if (response->code == REGISTRATION_ACK_CODE) {
+    registered = 1;
+    LOG_INFO("[HACSystem] Registration successful!\n");
+  } else {
+    LOG_WARN("[HACSystem] Registration failed with code: %d\n", response->code);
+  }
+
+  LOG_INFO("[HACSystem] === RESPONSE HANDLER END ===\n");
+}
 
 PROCESS_THREAD(actuator_process, ev, data)
 {
-  static struct etimer init_timer;
-  static coap_endpoint_t reg_ep;
-  static coap_message_t req[1];
-  static int retry = 0;
+  static struct etimer timer, init_timer;
+  static coap_endpoint_t server_ep;
+  static coap_message_t request[1];
+  static int retry;
+  static int success;
 
   PROCESS_BEGIN();
 
@@ -166,17 +176,18 @@ PROCESS_THREAD(actuator_process, ev, data)
   coap_engine_init();
   button_hal_init();
 
-  LOG_INFO("Waiting 10s for network stabilization\n");
-  etimer_set(&init_timer, CLOCK_SECOND * 10);
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
+  LOG_INFO("[HACSystem] Waiting for network establishment...\n");
+  etimer_set(&timer, CLOCK_SECOND * 10);
+  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+  LOG_INFO("[HACSystem] Network wait complete, starting registration\n");
 
-  coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &reg_ep);
+  coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
+  registered = 0;
+  retry = 0;
 
-  while (!registered && retry < MAX_REGISTRATION_RETRY) {
-    LOG_INFO("Attempting registration (%d/%d)\n", retry + 1, MAX_REGISTRATION_RETRY);
-
-    coap_init_message(req, COAP_TYPE_CON, COAP_POST, 0);
-    coap_set_header_uri_path(req, "/" REGISTRATION_RESOURCE_PATH);
+  while (retry < MAX_REGISTRATION_RETRY && !registered) {
+    coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
+    coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);
 
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "s", "HACSys");
@@ -185,33 +196,108 @@ PROCESS_THREAD(actuator_process, ev, data)
     cJSON_AddItemToArray(res, cJSON_CreateString("get_limit"));
     cJSON_AddItemToArray(res, cJSON_CreateString("sts"));
     cJSON_AddItemToObject(root, "ss", res);
-    cJSON_AddNumberToObject(root, "t", 60);
     char *payload = cJSON_PrintUnformatted(root);
-
-    coap_set_payload(req, (uint8_t *)payload, strlen(payload));
     cJSON_Delete(root);
 
-    COAP_BLOCKING_REQUEST(&reg_ep, req, registration_handler);
+    if (payload == NULL) {
+      LOG_ERR("[HACSystem] Failed to create payload\n");
+      PROCESS_EXIT();
+    }
+
+    LOG_INFO("[HACSystem] JSON payload (len=%zu): %s\n", strlen(payload), payload);
+    coap_set_payload(request, (uint8_t *)payload, strlen(payload));
+    LOG_INFO("[HACSystem] Sending registration request...\n");
+
+    COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
     free(payload);
 
     if (!registered) {
       retry++;
-      LOG_WARN("Registration failed. Retrying in %d seconds...\n", REGISTRATION_WAIT_SECONDS);
-      etimer_set(&init_timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
-      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
+      etimer_set(&timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
     }
   }
 
   if (!registered) {
-    LOG_ERR("Registration failed after %d attempts. Exiting process.\n", MAX_REGISTRATION_RETRY);
+    LOG_WARN("[HACSystem] Max registration attempts reached\n");
     PROCESS_EXIT();
   }
 
-  LOG_INFO("Registration successful! Starting resource observation\n");
+  LOG_INFO("Registration successful!\n");
+  LOG_INFO("[HACSystem] Starting service discovery for temperature and humidity\n");
+
+  retry = 0;
+  success = 0;
+
+  do {
+    static coap_endpoint_t disc_ep_temp, disc_ep_hum;
+    static coap_message_t disc_req_temp[1], disc_req_hum[1];
+    success = 1;
+
+    if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_temp)) {
+      LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predt\n");
+      success = 0;
+    } else {
+      coap_init_message(disc_req_temp, COAP_TYPE_CON, COAP_GET, 0);
+      coap_set_header_uri_path(disc_req_temp, SERVICE_DISCOVERY_PATH);
+      coap_set_header_uri_query(disc_req_temp, QUERY_TEMP);
+      LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_TEMP);
+      COAP_BLOCKING_REQUEST(&disc_ep_temp, disc_req_temp, discovery_response_handler_temp);
+
+      if (strlen(temp_service_payload) == 0) {
+        LOG_WARN("[DISCOVERY] Empty or invalid response for predt\n");
+        success = 0;
+      } else if (!coap_endpoint_parse(temp_service_payload, strlen(temp_service_payload), &temp_ep)) {
+        LOG_WARN("[DISCOVERY] Failed to parse endpoint for predt\n");
+        success = 0;
+      } else {
+        strncpy(temp_ip, temp_service_payload, sizeof(temp_ip) - 1);
+        temp_ip[sizeof(temp_ip) - 1] = '\0';
+        LOG_INFO("[DISCOVERY] Parsed temp IP: %s\n", temp_ip);
+      }
+    }
+
+    if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_hum)) {
+      LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predh\n");
+      success = 0;
+    } else {
+      coap_init_message(disc_req_hum, COAP_TYPE_CON, COAP_GET, 0);
+      coap_set_header_uri_path(disc_req_hum, SERVICE_DISCOVERY_PATH);
+      coap_set_header_uri_query(disc_req_hum, QUERY_HUM);
+      LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_HUM);
+      COAP_BLOCKING_REQUEST(&disc_ep_hum, disc_req_hum, discovery_response_handler_hum);
+
+      if (strlen(hum_service_payload) == 0) {
+        LOG_WARN("[DISCOVERY] Empty or invalid response for predh\n");
+        success = 0;
+      } else if (!coap_endpoint_parse(hum_service_payload, strlen(hum_service_payload), &hum_ep)) {
+        LOG_WARN("[DISCOVERY] Failed to parse endpoint for predh\n");
+        success = 0;
+      } else {
+        strncpy(hum_ip, hum_service_payload, sizeof(hum_ip) - 1);
+        hum_ip[sizeof(hum_ip) - 1] = '\0';
+        LOG_INFO("[DISCOVERY] Parsed hum IP: %s\n", hum_ip);
+      }
+    }
+
+    if (!success) {
+      retry++;
+      LOG_WARN("[DISCOVERY] Failed. Retrying in 10 seconds (%d/5)...\n", retry);
+      etimer_set(&init_timer, CLOCK_SECOND * 10);
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
+    }
+
+  } while (retry < 5 && !success);
+
+  if (!success || strlen(temp_ip) == 0 || strlen(hum_ip) == 0) {
+    LOG_ERR("Could not discover required services or IPs are empty\n");
+    PROCESS_EXIT();
+  }
+
+  LOG_INFO("[HACSystem] Starting observation of discovered services\n");
 
   obs_temp = coap_obs_request_registration(&temp_ep, "predt", temp_notification_handler, NULL);
   obs_hum = coap_obs_request_registration(&hum_ep, "predh", hum_notification_handler, NULL);
-
 
   if (!obs_temp || !obs_hum) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");
@@ -243,4 +329,3 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   PROCESS_END();
 }
-
