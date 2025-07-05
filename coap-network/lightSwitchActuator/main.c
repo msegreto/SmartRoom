@@ -71,10 +71,10 @@ void light_response_handler(coap_message_t *response) {
     LOG_INFO("[Light] Notification payload (RAW): %.*s\n", len, chunk);
 
     if (len == 1 && chunk[0] == '1') {
-      leds_on(LEDS_GREEN);
+      //leds_on(LEDS_GREEN);
       LOG_INFO("[Light] LED ON (from notification)\n");
     } else {
-      leds_off(LEDS_GREEN);
+      //leds_off(LEDS_GREEN);
       LOG_INFO("[Light] LED OFF (from notification)\n");
     }
   } else {

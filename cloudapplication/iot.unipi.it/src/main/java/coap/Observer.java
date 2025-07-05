@@ -32,7 +32,12 @@ public class Observer implements Runnable{
         relation = client.observe(new CoapHandler() {
             @Override
             public void onLoad(CoapResponse response) {
-                String payload = response.getResponseText();
+                String responseText = response.getResponseText();
+                if (responseText == null || responseText.trim().isEmpty()) {
+                    System.err.println("[Observer] Received empty or null response");
+                    return;
+                }
+                Float payload = Float.parseFloat(responseText.trim());
                 long timestamp = System.currentTimeMillis();
                 
                 // Log the received data

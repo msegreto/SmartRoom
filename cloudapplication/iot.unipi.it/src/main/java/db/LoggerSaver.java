@@ -29,7 +29,7 @@ public class LoggerSaver {
         deleteLogTable();
         String createTableSQL = "CREATE TABLE IF NOT EXISTS " + resource + "_log ("
                 + "id INT AUTO_INCREMENT PRIMARY KEY, "
-                + "value VARCHAR(255) NOT NULL,"
+                + "value FLOAT NOT NULL,"
                 + "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
                 + ")";
         
@@ -43,12 +43,12 @@ public class LoggerSaver {
         }
     }
 
-    public void saveLog(String value) throws SQLException {
+    public void saveLog(Float value) throws SQLException {
         String insertSQL = "INSERT INTO " + resource + "_log (value) VALUES (?)";
         
         try (Connection conn = Database.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
-            pstmt.setString(1, value);
+            pstmt.setFloat(1, value);
             pstmt.executeUpdate();
             System.out.println("[LoggerSaver] Successfully saved log for resource: " + resource + " with value: " + value);
         } catch (SQLException e) {
