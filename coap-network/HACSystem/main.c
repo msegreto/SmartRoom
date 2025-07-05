@@ -21,6 +21,37 @@ static coap_endpoint_t temp_ep, hum_ep;
 static coap_observee_t *obs_temp = NULL;
 static coap_observee_t *obs_hum = NULL;
 
+static char temp_service_payload[128] = "";
+static char hum_service_payload[128] = "";
+
+void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
+  if (!response || !buffer) {
+    LOG_WARN("[Discovery] No response or buffer null\n");
+    return;
+  }
+
+  const uint8_t *chunk;
+  int len = coap_get_payload(response, &chunk);
+  if (len <= 0 || len >= buffer_len) {
+    LOG_WARN("[Discovery] Invalid or empty payload\n");
+    buffer[0] = '\0';
+    return;
+  }
+
+  memcpy(buffer, chunk, len);
+  buffer[len] = '\0';
+
+  LOG_INFO("[Discovery] Response payload: %s\n", buffer);
+}
+
+void discovery_response_handler_temp(coap_message_t *response) {
+  discovery_response_handler(response, temp_service_payload, sizeof(temp_service_payload));
+}
+
+void discovery_response_handler_hum(coap_message_t *response) {
+  discovery_response_handler(response, hum_service_payload, sizeof(hum_service_payload));
+}
+
 void temp_response_handler(coap_message_t *response) {
   if (!response) {
     LOG_WARN("[Temp] No response received\n");
@@ -127,7 +158,7 @@ PROCESS_THREAD(actuator_process, ev, data)
   button_hal_init();
 
   LOG_INFO("[HACSystem] Waiting for network establishment...\n");
-  etimer_set(&timer, CLOCK_SECOND * 10); // Wait 10 seconds for network
+  etimer_set(&timer, CLOCK_SECOND * 10);
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
   LOG_INFO("[HACSystem] Network wait complete, starting registration\n");
 
@@ -175,47 +206,44 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   LOG_INFO("Registration successful!\n");
 
-
   retry = 0;
   while (retry < 5) {
     static coap_endpoint_t disc_ep;
     static coap_message_t disc_req[1];
-    const uint8_t *chunk;
-    int len;
-    char payload[128];
-
-    const char *services[] = {"predt", "predh"};
-    char *ip_targets[] = {temp_ip, hum_ip};
-    coap_endpoint_t *ep_targets[] = {&temp_ep, &hum_ep};
-
-    coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep);
     int success = 1;
 
-    for (int i = 0; i < 2; i++) {
-      char uri[32];
-      snprintf(uri, sizeof(uri), "/services/%s", services[i]);
+    coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep);
 
-      coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-      coap_set_header_uri_path(disc_req, uri);
+    // Discovery predt
+    coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
+    coap_set_header_uri_path(disc_req, "/services/predt");
+    LOG_INFO("Sending GET request to /services/predt\n");
+    COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_temp);
 
-      LOG_INFO("Sending GET request to %s\n", uri);
-      COAP_BLOCKING_REQUEST(&disc_ep, disc_req, client_chunk_handler);
+    if (strlen(temp_service_payload) == 0) {
+      LOG_WARN("Invalid or empty response for predt\n");
+      success = 0;
+    } else {
+      strncpy(temp_ip, temp_service_payload, sizeof(temp_ip) - 1);
+      temp_ip[sizeof(temp_ip) - 1] = '\0';
+      coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
+      LOG_INFO("Parsed temp IP: %s\n", temp_ip);
+    }
 
-      len = coap_get_payload(disc_req, &chunk);
-      if (len <= 0 || len >= sizeof(payload)) {
-        LOG_WARN("Invalid or empty response for %s\n", services[i]);
-        success = 0;
-        break;
-      }
+    // Discovery predh
+    coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
+    coap_set_header_uri_path(disc_req, "/services/predh");
+    LOG_INFO("Sending GET request to /services/predh\n");
+    COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_hum);
 
-      memcpy(payload, chunk, len);
-      payload[len] = '\0';
-
-      LOG_INFO("Received IP for %s: %s\n", services[i], payload);
-
-      strncpy(ip_targets[i], payload, sizeof(ip_targets[i]) - 1);
-      ip_targets[i][sizeof(ip_targets[i]) - 1] = '\0';
-      coap_endpoint_parse(ip_targets[i], strlen(ip_targets[i]), ep_targets[i]);
+    if (strlen(hum_service_payload) == 0) {
+      LOG_WARN("Invalid or empty response for predh\n");
+      success = 0;
+    } else {
+      strncpy(hum_ip, hum_service_payload, sizeof(hum_ip) - 1);
+      hum_ip[sizeof(hum_ip) - 1] = '\0';
+      coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
+      LOG_INFO("Parsed hum IP: %s\n", hum_ip);
     }
 
     if (success) break;
@@ -226,8 +254,8 @@ PROCESS_THREAD(actuator_process, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
   }
 
-  if (retry >= 5) {
-    LOG_ERR("Could not discover required services after multiple attempts\n");
+  if (retry >= 5 || strlen(temp_ip) == 0 || strlen(hum_ip) == 0) {
+    LOG_ERR("Could not discover required services or IPs are empty\n");
     PROCESS_EXIT();
   }
 
