@@ -68,17 +68,14 @@ void light_response_handler(coap_message_t *response) {
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
   if (len > 0) {
-    char buffer[64];
-    memcpy(buffer, chunk, len);
-    buffer[len] = '\0';
-    LOG_INFO("[Light] Notification payload: %s\n", buffer);
-    float value;
-    if (sscanf(buffer, "%f", &value) == 1) {
-      LOG_INFO("[Light] Parsed value: %.2f°C\n", value);
-      // Here you would typically call a function to handle the light value
-      // For example: logic_set_light(value);
+    LOG_INFO("[Light] Notification payload (RAW): %.*s\n", len, chunk);
+
+    if (len == 1 && chunk[0] == '1') {
+      leds_on(LEDS_GREEN);
+      LOG_INFO("[Light] LED ON (from notification)\n");
     } else {
-      LOG_WARN("[Light] Failed to parse float from: %s\n", buffer);
+      leds_off(LEDS_GREEN);
+      LOG_INFO("[Light] LED OFF (from notification)\n");
     }
   } else {
     LOG_WARN("[Light] Empty payload\n");
