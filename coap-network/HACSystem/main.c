@@ -24,6 +24,14 @@ static coap_observee_t *obs_hum = NULL;
 static char temp_service_payload[128] = "";
 static char hum_service_payload[128] = "";
 
+static void print_hex(const uint8_t *data, int len) {
+  printf("[HEX] ");
+  for (int i = 0; i < len; ++i) {
+    printf("%02X ", data[i]);
+  }
+  printf("\n");
+}
+
 void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
   if (!response || !buffer) {
     LOG_WARN("[Discovery] No response or buffer null\n");
@@ -41,7 +49,7 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
   memcpy(buffer, chunk, len);
   buffer[len] = '\0';
 
-  LOG_INFO("[Discovery] Payload (RAW): %.*s\n", len, chunk);
+  print_hex(chunk, len);
   LOG_INFO("[Discovery] Payload (STRING): %s\n", buffer);
 }
 
