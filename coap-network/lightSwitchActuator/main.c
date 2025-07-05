@@ -3,8 +3,7 @@
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
 #include "config.h"
-#include "../cJSON-master/cJSON.h"
-#include "res-light.h"  
+#include "../cJSON-master/cJSON.h" 
 
 #define LOG_MODULE "LightActuator"
 #define LOG_LEVEL LOG_LEVEL_INFO
