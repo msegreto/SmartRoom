@@ -212,12 +212,10 @@ PROCESS_THREAD(actuator_process, ev, data)
     static coap_message_t disc_req[1];
     int success = 1;
 
-    coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep);
-
-    // Discovery predt
+    // Discovery predh
+    coap_endpoint_parse(OBS_TEMP_URI, strlen(OBS_TEMP_URI), &disc_ep);
     coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-    coap_set_header_uri_path(disc_req, "/services/predt");
-    LOG_INFO("Sending GET request to /services/predt\n");
+    LOG_INFO("[HACSystem] Sending GET request to OBS_TEMP_URI: %s\n", OBS_TEMP_URI);
     COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_temp);
 
     if (strlen(temp_service_payload) == 0) {
@@ -231,9 +229,9 @@ PROCESS_THREAD(actuator_process, ev, data)
     }
 
     // Discovery predh
+    coap_endpoint_parse(OBS_HUM_URI, strlen(OBS_HUM_URI), &disc_ep);
     coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-    coap_set_header_uri_path(disc_req, "/services/predh");
-    LOG_INFO("Sending GET request to /services/predh\n");
+    LOG_INFO("[HACSystem] Sending GET request to OBS_HUM_URI: %s\n", OBS_HUM_URI);
     COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_hum);
 
     if (strlen(hum_service_payload) == 0) {
@@ -249,7 +247,7 @@ PROCESS_THREAD(actuator_process, ev, data)
     if (success) break;
 
     retry++;
-    LOG_WARN("Discovery failed. Retrying in 10 seconds (%d/5)...\n", retry);
+    LOG_WARN("[HACSystem] Discovery failed. Retrying in 10 seconds (%d/5)...\n", retry);
     etimer_set(&init_timer, CLOCK_SECOND * 10);
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
   }
@@ -259,7 +257,7 @@ PROCESS_THREAD(actuator_process, ev, data)
     PROCESS_EXIT();
   }
 
-  LOG_INFO("Starting observation of discovered services\n");
+  LOG_INFO("[HACSystem] Starting observation of discovered services\n");
 
   obs_temp = coap_obs_request_registration(&temp_ep, "predt", temp_notification_handler, NULL);
   obs_hum = coap_obs_request_registration(&hum_ep, "predh", hum_notification_handler, NULL);
