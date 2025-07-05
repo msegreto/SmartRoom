@@ -1,12 +1,16 @@
 #include "contiki.h"
+#include "sys/log.h"
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
-#include "sys/log.h"
 #include "config.h"
 #include "../cJSON-master/cJSON.h"
+#include "res-light.h"  
 
 #define LOG_MODULE "LightActuator"
 #define LOG_LEVEL LOG_LEVEL_INFO
+
+PROCESS(light_actuator_process, "Light Actuator");
+AUTOSTART_PROCESSES(&light_actuator_process);
 
 static int registered = 0;
 static char light_ip[64];
@@ -118,9 +122,6 @@ static void client_chunk_handler(coap_message_t *response) {
 
   LOG_INFO("[LightSystemAct] === RESPONSE HANDLER END ===\n");
 }
-
-PROCESS(light_actuator_process, "Light Actuator");
-AUTOSTART_PROCESSES(&light_actuator_process);
 
 PROCESS_THREAD(light_actuator_process, ev, data) {
   static struct etimer timer, init_timer;
