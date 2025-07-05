@@ -41,7 +41,8 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
   memcpy(buffer, chunk, len);
   buffer[len] = '\0';
 
-  LOG_INFO("[Discovery] Response payload: %s\n", buffer);
+  LOG_INFO("[Discovery] Payload (RAW): %.*s\n", len, chunk);
+  LOG_INFO("[Discovery] Payload (STRING): %s\n", buffer);
 }
 
 void discovery_response_handler_temp(coap_message_t *response) {
@@ -259,8 +260,8 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   LOG_INFO("[HACSystem] Starting observation of discovered services\n");
 
-  obs_temp = coap_obs_request_registration(&temp_ep, NULL, temp_notification_handler, NULL);
-  obs_hum = coap_obs_request_registration(&hum_ep, NULL, hum_notification_handler, NULL);
+  obs_temp = coap_obs_request_registration(&temp_ep, "predt", temp_notification_handler, NULL);
+  obs_hum = coap_obs_request_registration(&hum_ep, "predh", hum_notification_handler, NULL);
 
   if (!obs_temp || !obs_hum) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");
