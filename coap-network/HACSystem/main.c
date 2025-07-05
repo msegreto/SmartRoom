@@ -133,13 +133,13 @@ static void client_chunk_handler(coap_message_t *response) {
   LOG_INFO("[HACSystem] Response received! Code: %d\n", response->code);
 
   int len = coap_get_payload(response, &chunk);
-  if (len <= 0 || chunk == NULL) {
-    LOG_WARN("[HACSystem] Empty or invalid payload received (len=%d)\n", len);
-  } else {
+  if (len > 0 && chunk != NULL) {
     char payload[len + 1];
     memcpy(payload, chunk, len);
     payload[len] = '\0';
     LOG_INFO("[HACSystem] Response payload: '%s'\n", payload);
+  } else {
+    LOG_WARN("[HACSystem] Empty or invalid payload received (len=%d)\n", len);
   }
 
   if (response->code == REGISTRATION_ACK_CODE) {
@@ -158,6 +158,7 @@ PROCESS_THREAD(actuator_process, ev, data)
   static coap_endpoint_t server_ep;
   static coap_message_t request[1];
   static int retry;
+  static int success;
 
   PROCESS_BEGIN();
 
@@ -215,15 +216,15 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   LOG_INFO("Registration successful!\n");
   LOG_INFO("[HACSystem] Starting service discovery for temperature and humidity\n");
-  retry = 0;
-  int success = 0;
 
-  while (retry < 5) {
+  retry = 0;
+  success = 0;
+
+  do {
     static coap_endpoint_t disc_ep_temp, disc_ep_hum;
     static coap_message_t disc_req_temp[1], disc_req_hum[1];
     success = 1;
 
-    // --- Discovery predt ---
     if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_temp)) {
       LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predt\n");
       success = 0;
@@ -245,7 +246,6 @@ PROCESS_THREAD(actuator_process, ev, data)
       }
     }
 
-    // --- Discovery predh ---
     if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_hum)) {
       LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predh\n");
       success = 0;
@@ -267,26 +267,21 @@ PROCESS_THREAD(actuator_process, ev, data)
       }
     }
 
-  }
+    if (!success) {
+      retry++;
+      LOG_WARN("[DISCOVERY] Failed. Retrying in 10 seconds (%d/5)...\n", retry);
+      etimer_set(&init_timer, CLOCK_SECOND * 10);
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
+    }
 
-  if (success) {
-    LOG_INFO("[DISCOVERY] Success \n");
-    break;
-  }
+  } while (retry < 5 && !success);
 
-  retry++;
-  LOG_WARN("[DISCOVERY] Failed. Retrying in 10 seconds (%d/5)...\n", retry);
-  etimer_set(&init_timer, CLOCK_SECOND * 10);
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
-}
-
-
-  if (retry >= 5 || strlen(temp_ip) == 0 || strlen(hum_ip) == 0) {
+  if (!success || strlen(temp_ip) == 0 || strlen(hum_ip) == 0) {
     LOG_ERR("Could not discover required services or IPs are empty\n");
     PROCESS_EXIT();
   }
 
-  LOG_INFO("[HACSystem]Starting observation of discovered services\n");
+  LOG_INFO("[HACSystem] Starting observation of discovered services\n");
 
   obs_temp = coap_obs_request_registration(&temp_ep, "predt", temp_notification_handler, NULL);
   obs_hum = coap_obs_request_registration(&hum_ep, "predh", hum_notification_handler, NULL);
