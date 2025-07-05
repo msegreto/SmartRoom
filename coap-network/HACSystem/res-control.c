@@ -4,6 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "sys/log.h"
+#include "logic.h"
+
+static float status = 0;
+static void res_get_handler(coap_message_t *request, coap_message_t *response,
+                            uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
+static void res_event_handler(void);
 
 static void post_handler(coap_message_t *request, coap_message_t *response,
                          uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
@@ -26,12 +33,6 @@ static void get_threshold_handler(coap_message_t *request, coap_message_t *respo
   coap_set_payload(response, buffer, len);
 }
 
-static void get_status_handler(coap_message_t *request, coap_message_t *response,
-                         uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-  const char *status = logic_get_status();
-  coap_set_payload(response, (uint8_t *)status, strlen(status));
-}
-
 RESOURCE(res_set_threshold,
          "title=\"Set thresholds\"",
          NULL, post_handler, NULL, NULL);
@@ -40,6 +41,42 @@ RESOURCE(res_get_threshold,
          "title=\"Get thresholds\"",
          get_threshold_handler, NULL, NULL, NULL);
 
+
 RESOURCE(res_status,
-         "title=\"Actuator status\"",
-         get_status_handler, NULL, NULL, NULL);
+         "title=\"Actuator status\";obs",
+         res_get_handler,
+         NULL, NULL, NULL,
+         res_event_handler);
+
+void trigger_status_change(void) {
+  LOG_INFO("[Status] Triggering Status event\n");
+  res_status.trigger();
+}
+
+static void res_event_handler(void) {
+    LOG_INFO("[Status] Notifying observers...\n");
+    coap_notify_observers(&res_status);
+}
+
+static void res_get_handler(coap_message_t *request, coap_message_t *response,
+                            uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
+    warming_state_t current = logic_get_state();
+    const char *status_str = NULL;
+
+    switch (current) {
+      case WARMING_COOLING: status_str = "cooling"; break;
+      case WARMING_HEATING: status_str = "heating"; break;
+      default: status_str = "none"; break;
+    }
+
+    int len = snprintf((char *)buffer, preferred_size, "%s", status_str);
+    if (len > 0) {
+        LOG_INFO("[Status] Payload: %s\n", status_str);
+        coap_set_header_content_format(response, TEXT_PLAIN);
+        coap_set_payload(response, buffer, len);
+    } else {
+        LOG_WARN("[Status] Failed to format payload\n");
+    }
+
+    LOG_INFO("[Status] GET handled\n");
+}
