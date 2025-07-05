@@ -2,6 +2,7 @@
 #include "config.h"
 #include "leds.h"
 #include "sys/log.h"
+#include "res-control.h" 
 #include <stdio.h>
 
 #define LOG_MODULE "Logic"
@@ -12,6 +13,7 @@ static float last_hum = 0;
 static float threshold_min = DEFAULT_THRESHOLD_MIN;
 static float threshold_max = DEFAULT_THRESHOLD_MAX;
 static warming_state_t state = WARMING_NONE;
+extern void trigger_status_change(void);
 
 void logic_set_temp(float t) {
   last_temp = t;
@@ -41,6 +43,9 @@ void logic_reset_status(void) {
 void logic_check() {
   float perceived = last_temp - 0.55f * (1 - last_hum) * (last_temp - 14.5f);
   LOG_INFO("Perceived temp: %.2f\n", perceived);
+
+  warming_state_t old_state = state;
+
   if (perceived > threshold_max) {
     state = WARMING_COOLING;
     leds_on(LEDS_GREEN);
@@ -53,6 +58,11 @@ void logic_check() {
     state = WARMING_NONE;
     leds_off(LEDS_ALL);
   }
+
+  if (state != old_state) {
+    LOG_INFO("State changed from %d to %d\n", old_state, state);
+    trigger_status_change();
+  }
 }
 
 const char *logic_get_status() {
@@ -61,4 +71,8 @@ const char *logic_get_status() {
     case WARMING_HEATING: return "heating";
     default: return "none";
   }
+}
+
+warming_state_t logic_get_state(void) {
+  return state;
 }

@@ -1,12 +1,11 @@
-#include "res_latest.h"
-#include "coap-constants.h"
-#include <stdio.h>
-#include "../sensor/buffer.h"
+
+#include "res_prediction.h"
 
 #include "sys/log.h"
 #define LOG_MODULE "res_latest"
 #define LOG_LEVEL LOG_LEVEL_APP
 
+static float last_value = 0;
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 static void res_event_handler(void);
@@ -17,26 +16,9 @@ EVENT_RESOURCE(res_latest,
          NULL, NULL, NULL,
          res_event_handler);
 
-static void res_get_handler(coap_message_t *request, coap_message_t *response,
-                            uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-    if (buffer == NULL || preferred_size < 10) {
-        coap_set_status_code(response, INTERNAL_SERVER_ERROR_5_00);
-        return;
-    }
-    
-    float latest = get_latest_value();
-    int len = snprintf((char *)buffer, preferred_size, "%.2f", latest);
-    
-    if (len < 0 || len >= preferred_size) {
-        coap_set_status_code(response, INTERNAL_SERVER_ERROR_5_00);
-        return;
-    }
-    
-    LOG_INFO("[Latest] GET request received, sending: %.2f\n", latest);
-    coap_set_payload(response, buffer, len);
-}
-
-void trigger_latest_event() {
+void trigger_latest_event(float value) {
+    last_value = value;
+    LOG_INFO("[Latest] Triggering latest event, value: %.2f\n", last_value);
     res_latest.trigger();
 }
 
@@ -44,3 +26,21 @@ static void res_event_handler(void) {
     LOG_INFO("[Latest] Notifying observers...\n");
     coap_notify_observers(&res_latest);
 }
+
+static void res_get_handler(coap_message_t *request, coap_message_t *response,
+                            uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
+
+    int len = snprintf((char *)buffer, preferred_size, "%.2f", last_value);
+
+    if (len > 0) {
+        LOG_INFO("[Latest] Formatted payload: %s (len=%d)\n", buffer, len);
+        coap_set_header_content_format(response, TEXT_PLAIN);  // Necessario per le notifiche
+        coap_set_payload(response, buffer, len);
+    } else {
+        LOG_WARN("[Latest] Failed to format payload\n");
+    }
+
+    LOG_INFO("[latest] GET request handled, content sent\n");
+}
+
+

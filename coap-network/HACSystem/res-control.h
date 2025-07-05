@@ -4,4 +4,6 @@
 extern coap_resource_t res_set_threshold;
 extern coap_resource_t res_get_threshold;
 extern coap_resource_t res_status;
+
+void trigger_status_change(void) ;
 #endif

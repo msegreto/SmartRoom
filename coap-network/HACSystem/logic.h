@@ -14,5 +14,6 @@ void logic_set_thresholds(float th_min, float th_max);
 void logic_get_thresholds(float *th_min, float *th_max);
 const char *logic_get_status();
 void logic_reset_status(void);
+warming_state_t logic_get_state(void);
 
 #endif

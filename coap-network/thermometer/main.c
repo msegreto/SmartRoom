@@ -160,7 +160,7 @@ PROCESS_THREAD(thermometer_process, ev, data) {
       float temp = generate_random_temperature();
       LOG_INFO("Generated temperature: %.2f\n", temp);
       update_buffer(temp);
-      trigger_latest_event();
+      trigger_latest_event(temp);
 
       if(buffer_is_full()) {
         LOG_INFO("Buffer is full, triggering prediction event.\n");

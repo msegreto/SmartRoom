@@ -147,7 +147,7 @@ PROCESS_THREAD(humidity_process, ev, data) {
       float hum = generate_random_humidity(); // <-- implementa se non esiste
       LOG_INFO("Generated humidity: %.2f\n", hum);
       update_buffer(hum);
-      trigger_latest_event();
+      trigger_latest_event(hum);
 
       if(buffer_is_full()) {
         LOG_INFO("Buffer is full, triggering prediction event.\n");
