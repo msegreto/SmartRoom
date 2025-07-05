@@ -216,54 +216,56 @@ PROCESS_THREAD(actuator_process, ev, data)
   LOG_INFO("Registration successful!\n");
   LOG_INFO("[HACSystem] Starting service discovery for temperature and humidity\n");
   retry = 0;
-while (retry < 5) {
-  static coap_endpoint_t disc_ep_temp, disc_ep_hum;
-  static coap_message_t disc_req_temp[1], disc_req_hum[1];
-  int success = 1;
+  int success = 0;
 
-  // --- Discovery predt ---
-  if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_temp)) {
-    LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predt\n");
-    success = 0;
-  } else {
-    coap_init_message(disc_req_temp, COAP_TYPE_CON, COAP_GET, 0);
-    coap_set_header_uri_path(disc_req_temp, SERVICE_DISCOVERY_PATH);
-    coap_set_header_uri_query(disc_req_temp, QUERY_TEMP);
-    LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_TEMP);
-    COAP_BLOCKING_REQUEST(&disc_ep_temp, disc_req_temp, discovery_response_handler_temp);
+  while (retry < 5) {
+    static coap_endpoint_t disc_ep_temp, disc_ep_hum;
+    static coap_message_t disc_req_temp[1], disc_req_hum[1];
+    success = 1;
 
-    if (strlen(temp_service_payload) == 0) {
-      LOG_WARN("[DISCOVERY] Empty or invalid response for predt\n");
+    // --- Discovery predt ---
+    if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_temp)) {
+      LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predt\n");
       success = 0;
     } else {
-      strncpy(temp_ip, temp_service_payload, sizeof(temp_ip) - 1);
-      temp_ip[sizeof(temp_ip) - 1] = '\0';
-      coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
-      LOG_INFO("[DISCOVERY] Parsed temp IP: %s\n", temp_ip);
+      coap_init_message(disc_req_temp, COAP_TYPE_CON, COAP_GET, 0);
+      coap_set_header_uri_path(disc_req_temp, SERVICE_DISCOVERY_PATH);
+      coap_set_header_uri_query(disc_req_temp, QUERY_TEMP);
+      LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_TEMP);
+      COAP_BLOCKING_REQUEST(&disc_ep_temp, disc_req_temp, discovery_response_handler_temp);
+
+      if (strlen(temp_service_payload) == 0) {
+        LOG_WARN("[DISCOVERY] Empty or invalid response for predt\n");
+        success = 0;
+      } else {
+        strncpy(temp_ip, temp_service_payload, sizeof(temp_ip) - 1);
+        temp_ip[sizeof(temp_ip) - 1] = '\0';
+        coap_endpoint_parse(temp_ip, strlen(temp_ip), &temp_ep);
+        LOG_INFO("[DISCOVERY] Parsed temp IP: %s\n", temp_ip);
+      }
     }
-  }
 
-  // --- Discovery predh ---
-  if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_hum)) {
-    LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predh\n");
-    success = 0;
-  } else {
-    coap_init_message(disc_req_hum, COAP_TYPE_CON, COAP_GET, 0);
-    coap_set_header_uri_path(disc_req_hum, SERVICE_DISCOVERY_PATH);
-    coap_set_header_uri_query(disc_req_hum, QUERY_HUM);
-    LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_HUM);
-    COAP_BLOCKING_REQUEST(&disc_ep_hum, disc_req_hum, discovery_response_handler_hum);
-
-    if (strlen(hum_service_payload) == 0) {
-      LOG_WARN("[DISCOVERY] Empty or invalid response for predh\n");
+    // --- Discovery predh ---
+    if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_hum)) {
+      LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for predh\n");
       success = 0;
     } else {
-      strncpy(hum_ip, hum_service_payload, sizeof(hum_ip) - 1);
-      hum_ip[sizeof(hum_ip) - 1] = '\0';
-      coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
-      LOG_INFO("[DISCOVERY] Parsed hum IP: %s\n", hum_ip);
+      coap_init_message(disc_req_hum, COAP_TYPE_CON, COAP_GET, 0);
+      coap_set_header_uri_path(disc_req_hum, SERVICE_DISCOVERY_PATH);
+      coap_set_header_uri_query(disc_req_hum, QUERY_HUM);
+      LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_HUM);
+      COAP_BLOCKING_REQUEST(&disc_ep_hum, disc_req_hum, discovery_response_handler_hum);
+
+      if (strlen(hum_service_payload) == 0) {
+        LOG_WARN("[DISCOVERY] Empty or invalid response for predh\n");
+        success = 0;
+      } else {
+        strncpy(hum_ip, hum_service_payload, sizeof(hum_ip) - 1);
+        hum_ip[sizeof(hum_ip) - 1] = '\0';
+        coap_endpoint_parse(hum_ip, strlen(hum_ip), &hum_ep);
+        LOG_INFO("[DISCOVERY] Parsed hum IP: %s\n", hum_ip);
+      }
     }
-  }
 
   }
 
