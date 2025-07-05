@@ -222,10 +222,13 @@ PROCESS_THREAD(actuator_process, ev, data)
     int success = 1;
 
     // Discovery predh
-    coap_endpoint_parse(OBS_TEMP_URI, strlen(OBS_TEMP_URI), &disc_ep);
+    coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep);
     coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-    LOG_INFO("[HACSystem] Sending GET request to OBS_TEMP_URI: %s\n", OBS_TEMP_URI);
-    COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_temp);
+    coap_set_header_uri_path(disc_req, "/" OBS_HUM_RESOURCE_PATH);
+    LOG_INFO("[HACSystem] Sending GET request to /%s on %s\n", OBS_HUM_RESOURCE_PATH, CLOUD_SERVER_EP);
+    COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_hum);
+
+
 
     if (strlen(temp_service_payload) == 0) {
       LOG_WARN("Invalid or empty response for predt\n");
@@ -238,10 +241,11 @@ PROCESS_THREAD(actuator_process, ev, data)
     }
 
     // Discovery predh
-    coap_endpoint_parse(OBS_HUM_URI, strlen(OBS_HUM_URI), &disc_ep);
+    coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep);
     coap_init_message(disc_req, COAP_TYPE_CON, COAP_GET, 0);
-    LOG_INFO("[HACSystem] Sending GET request to OBS_HUM_URI: %s\n", OBS_HUM_URI);
-    COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_hum);
+    coap_set_header_uri_path(disc_req, "/" OBS_TEMP_RESOURCE_PATH);
+    LOG_INFO("[HACSystem] Sending GET request to /%s on %s\n", OBS_TEMP_RESOURCE_PATH, CLOUD_SERVER_EP);
+    COAP_BLOCKING_REQUEST(&disc_ep, disc_req, discovery_response_handler_temp);
 
     if (strlen(hum_service_payload) == 0) {
       LOG_WARN("Invalid or empty response for predh\n");
