@@ -137,7 +137,7 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
   LOG_INFO("[LightSystemAct] Network wait complete, starting registration\n");
   
-  coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &cloud_endpoint);
+  coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
   registered = 0;
   retry = 0;
 
