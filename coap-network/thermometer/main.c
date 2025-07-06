@@ -27,9 +27,6 @@ extern coap_resource_t res_prediction;
 extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
-//void trigger_prediction_event();
-//void trigger_latest_event();
-
 static int registered = 0;
 
 static void client_chunk_handler(coap_message_t *response) {
@@ -79,16 +76,7 @@ PROCESS_THREAD(thermometer_process, ev, data) {
   PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
   LOG_INFO("[Thermometer] Network wait complete, starting registration\n");
 
-  // Registrazione diretta nel protothread
-  LOG_INFO("[Thermometer] Attempting to parse endpoint: %s\n", CLOUD_SERVER_EP);
-  if(coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep) == 0) {
-    LOG_ERR("[Thermometer] Failed to parse server endpoint!\n");
-    PROCESS_EXIT();
-  }
-  LOG_INFO("[Thermometer] Server endpoint parsed successfully\n");
-  LOG_INFO("[Thermometer] Target server: %s:%d\n", 
-           server_ep.ipaddr.u8[0] == 0xfd ? "fd00::1" : "unknown", 
-           server_ep.port);
+  coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep)
   registered = 0;
   retry = 0;
 
@@ -156,16 +144,15 @@ PROCESS_THREAD(thermometer_process, ev, data) {
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
 
-    if(sensor_is_active()) {
-      float temp = generate_random_temperature();
-      LOG_INFO("Generated temperature: %.2f\n", temp);
-      update_buffer(temp);
-      trigger_latest_event(temp);
+    
+    float temp = generate_random_temperature();
+    LOG_INFO("Generated temperature: %.2f\n", temp);
+    update_buffer(temp);
+    trigger_latest_event(temp);
 
-      if(buffer_is_full()) {
-        LOG_INFO("Buffer is full, triggering prediction event.\n");
-        trigger_prediction_event();
-      }
+    if(buffer_is_full()) {
+      LOG_INFO("Buffer is full, triggering prediction event.\n");
+      trigger_prediction_event();
     }
 
     etimer_reset(&timer);
