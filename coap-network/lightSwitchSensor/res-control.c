@@ -1,4 +1,4 @@
-#include "res_control.h"
+#include "res-control.h"
 #include "coap-engine.h"
 #include "sys/log.h"
 #include "res-light.h"

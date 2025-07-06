@@ -12,7 +12,7 @@ endif
 
 # Progetto e sorgenti
 CONTIKI_PROJECT = main
-PROJECT_SOURCEFILES += main.c res-light.c
+PROJECT_SOURCEFILES += main.c res-light.c res-control.c
 
 # Flags e moduli
 CFLAGS += -I$(CONTIKI_NG)/os/net/app-layer/coap
