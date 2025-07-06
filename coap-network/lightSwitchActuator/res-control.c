@@ -1,9 +1,9 @@
 #include "res-control.h"
 #include "coap-engine.h"
-#include "sys/log.h"
 
-#define LOG_MODULE "LightResControl"
+#define LOG_MODULE "ResControl"
 #define LOG_LEVEL LOG_LEVEL_APP
+#include "sys/log.h"
 
 extern struct process light_actuator_process;
 
@@ -37,7 +37,7 @@ void sensor_off(void) {
     LOG_INFO("[ActuatorCtrl] Shutting down Light Actuator\n");
 
     // Rimuove osservazioni attive sulla risorsa "light"
-    coap_remove_observers_by_uri("light");
+    coap_remove_observer_by_uri("light");
 
     // Disattiva le risorse CoAP
     extern coap_resource_t res_led;

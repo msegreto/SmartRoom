@@ -1,10 +1,10 @@
 #include "res-control.h"
 #include "coap-engine.h"
-#include "sys/log.h"
 #include "res-light.h"
 
-#define LOG_MODULE "LightSensorControl"
+#define LOG_MODULE "ResControl"
 #define LOG_LEVEL LOG_LEVEL_APP
+#include "sys/log.h"
 
 extern struct process light_sensor_main_process;
 
