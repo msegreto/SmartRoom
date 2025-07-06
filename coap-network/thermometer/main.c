@@ -88,13 +88,26 @@ void hac_response_handler(coap_message_t *response) {
     memcpy(buffer, chunk, len);
     buffer[len] = '\0';
     LOG_INFO("[HAC] Notification payload: %s\n", buffer);
+
     float value;
     if (sscanf(buffer, "%f", &value) == 1) {
       LOG_INFO("[HAC] Parsed value: %.2f°C\n", value);
-      //HERE SOME LOGIC TO HANDLE THE TEMPERATURE VALUE
-    } else {
-      LOG_WARN("[HAC] Failed to parse float from: %s\n", buffer);
     }
+
+    // Nuova logica: cambio trend in base al payload
+    if (strcmp(buffer, "cooling") == 0) {
+      set_temperature_trend(TREND_COOLING);
+      LOG_INFO("[HAC] Set trend to COOLING\n");
+    } else if (strcmp(buffer, "heating") == 0) {
+      set_temperature_trend(TREND_HEATING);
+      LOG_INFO("[HAC] Set trend to HEATING\n");
+    } else if (strcmp(buffer, "none") == 0) {
+      set_temperature_trend(TREND_NONE);
+      LOG_INFO("[HAC] Set trend to NONE\n");
+    }else {
+      LOG_WARN("[HAC] Unknown trend value: %s\n", buffer);
+    }
+
   } else {
     LOG_WARN("[HAC] Empty payload\n");
   }
