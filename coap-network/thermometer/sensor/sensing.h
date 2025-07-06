@@ -7,14 +7,15 @@
 #include <stdlib.h>
 #include <math.h>
 
-// Attiva il sensore
-void sensor_on(void);
+// Tipologia di andamento della temperatura
+typedef enum {
+    TREND_NONE,
+    TREND_COOLING,
+    TREND_HEATING
+} TemperatureTrend;
 
-// Disattiva il sensore
-void sensor_off(void);
-
-// Restituisce 1 se il sensore è attivo, 0 altrimenti
-int sensor_is_active(void);
+// Imposta la direzione del trend
+void set_temperature_trend(TemperatureTrend trend);
 
 // Genera una temperatura casuale con media e deviazione standard configurabili
 float generate_random_temperature(void);

@@ -1,7 +1,4 @@
-// sensor/sensing.c
 #include "sensing.h"
-
-static int sensor_active = 0;
 
 static float current_humidity = MEAN_HUMIDITY;
 
@@ -25,7 +22,3 @@ float generate_random_humidity() {
     current_humidity = new_temp;
     return current_humidity;
 }
-
-void sensor_on() { sensor_active = 1; }
-void sensor_off() { sensor_active = 0; }
-int sensor_is_active() { return sensor_active; }

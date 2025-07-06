@@ -8,6 +8,7 @@
 #include "../cJSON-master/cJSON.h"
 #include "dev/button-hal.h"
 #include "res-light.h"
+#include "res-control.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,6 +84,8 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
       PROCESS_EXIT();
     }
     cJSON_AddItemToArray(resources, cJSON_CreateString("light"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("onlightsensor"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("offlightsensor"));
     cJSON_AddItemToObject(root, "ss", resources);
 
     char *payload = cJSON_PrintUnformatted(root);
@@ -112,6 +115,8 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
   }
 
   coap_activate_resource(&res_light, "light");
+  coap_activate_resource(&res_on, "onlightsensor");
+  coap_activate_resource(&res_off, "offlightsensor");
 
   LOG_INFO("[Light] System ready\n");
 

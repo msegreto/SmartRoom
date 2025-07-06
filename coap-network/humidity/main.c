@@ -143,17 +143,15 @@ PROCESS_THREAD(humidity_process, ev, data) {
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
 
-    if(sensor_is_active()) {
-      float hum = generate_random_humidity(); // <-- implementa se non esiste
-      LOG_INFO("Generated humidity: %.2f\n", hum);
-      update_buffer(hum);
-      trigger_latest_event(hum);
+    float hum = generate_random_humidity(); // <-- implementa se non esiste
+    LOG_INFO("Generated humidity: %.2f\n", hum);
+    update_buffer(hum);
+    trigger_latest_event(hum);
 
-      if(buffer_is_full()) {
-        LOG_INFO("Buffer is full, triggering prediction event.\n");
-        trigger_prediction_event();
-      }
-    }
+    if(buffer_is_full()) {
+      LOG_INFO("Buffer is full, triggering prediction event.\n");
+      trigger_prediction_event();
+    }   
 
     etimer_reset(&timer);
   }

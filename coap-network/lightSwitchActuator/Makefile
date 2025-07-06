@@ -1,7 +1,7 @@
 USER_NAME := $(shell whoami)
 
 CONTIKI_PROJECT = led-actuator
-PROJECT_SOURCEFILES += res-led.c
+PROJECT_SOURCEFILES += res-led.c res-control.c
 
 all: $(CONTIKI_PROJECT)
 

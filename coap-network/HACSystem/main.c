@@ -18,8 +18,8 @@ static int registered = 0;
 static char temp_ip[64];
 static char hum_ip[64];
 static coap_endpoint_t temp_ep, hum_ep;
-static coap_observee_t *obs_temp = NULL;
-static coap_observee_t *obs_hum = NULL;
+coap_observee_t *obs_temp = NULL;
+coap_observee_t *obs_hum = NULL;
 
 static char temp_service_payload[128] = "";
 static char hum_service_payload[128] = "";
@@ -60,7 +60,6 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
   print_hex(chunk, len);
   LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
 }
-
 
 void discovery_response_handler_temp(coap_message_t *response) {
   discovery_response_handler(response, temp_service_payload, sizeof(temp_service_payload));
@@ -195,6 +194,8 @@ PROCESS_THREAD(actuator_process, ev, data)
     cJSON_AddItemToArray(res, cJSON_CreateString("set_limit"));
     cJSON_AddItemToArray(res, cJSON_CreateString("get_limit"));
     cJSON_AddItemToArray(res, cJSON_CreateString("status"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("onhac"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("offhac"));
     cJSON_AddItemToObject(root, "ss", res);
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -224,6 +225,14 @@ PROCESS_THREAD(actuator_process, ev, data)
   }
 
   LOG_INFO("Registration successful!\n");
+
+  // Attiva risorse e avvia sensing
+  coap_activate_resource(&res_set_threshold, "set_limit");
+  coap_activate_resource(&res_get_threshold, "get_limit");
+  coap_activate_resource(&res_status, "status");
+  coap_activate_resource(&res_on, "onhac");
+  coap_activate_resource(&res_off, "offhac");
+
   LOG_INFO("[HACSystem] Starting service discovery for temperature and humidity\n");
 
   retry = 0;
@@ -298,10 +307,6 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   obs_temp = coap_obs_request_registration(&temp_ep, "predt", temp_notification_handler, NULL);
   obs_hum = coap_obs_request_registration(&hum_ep, "predh", hum_notification_handler, NULL);
-
-  coap_activate_resource(&res_set_threshold, "set_limit");
-  coap_activate_resource(&res_get_threshold, "get_limit");
-  coap_activate_resource(&res_status, "status");
 
   if (!obs_temp || !obs_hum) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");
