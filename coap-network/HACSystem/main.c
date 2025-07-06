@@ -184,7 +184,6 @@ PROCESS_THREAD(actuator_process, ev, data)
   registered = 0;
   retry = 0;
 
-  coap_activate_resource(&res_status, "status");
   while (retry < MAX_REGISTRATION_RETRY && !registered) {
     coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
     coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);
@@ -226,6 +225,14 @@ PROCESS_THREAD(actuator_process, ev, data)
   }
 
   LOG_INFO("Registration successful!\n");
+
+  // Attiva risorse e avvia sensing
+  coap_activate_resource(&res_set_threshold, "set_limit");
+  coap_activate_resource(&res_get_threshold, "get_limit");
+  coap_activate_resource(&res_status, "status");
+  coap_activate_resource(&res_on, "onhac");
+  coap_activate_resource(&res_off, "offhac");
+
   LOG_INFO("[HACSystem] Starting service discovery for temperature and humidity\n");
 
   retry = 0;
@@ -300,11 +307,6 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   obs_temp = coap_obs_request_registration(&temp_ep, "predt", temp_notification_handler, NULL);
   obs_hum = coap_obs_request_registration(&hum_ep, "predh", hum_notification_handler, NULL);
-
-  coap_activate_resource(&res_set_threshold, "set_limit");
-  coap_activate_resource(&res_get_threshold, "get_limit");
-  coap_activate_resource(&res_on, "onhac");
-  coap_activate_resource(&res_off, "offhac");
 
   if (!obs_temp || !obs_hum) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");

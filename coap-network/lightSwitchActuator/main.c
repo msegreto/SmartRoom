@@ -182,6 +182,13 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   }
 
   LOG_INFO("Registration successful!\n");
+
+  // Attiva la risorsa LED
+  extern coap_resource_t res_led;
+  coap_activate_resource(&res_led, "led");
+  coap_activate_resource(&res_on, "onlightactuator");
+  coap_activate_resource(&res_off, "offlightactuator");
+  
   LOG_INFO("[LightSystemAct] Starting service discovery for light\n");
 
   retry = 0;
@@ -239,12 +246,6 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   }
 
   LOG_INFO("Observations set up successfully.\n");
-
-  // Attiva la risorsa LED
-  extern coap_resource_t res_led;
-  coap_activate_resource(&res_led, "led");
-  coap_activate_resource(&res_on, "onlightactuator");
-  coap_activate_resource(&res_off, "offlightactuator");
   
   LOG_INFO("Light Actuator ready\n");
   LOG_INFO("LED resource activated at /led\n");
