@@ -17,9 +17,16 @@ EVENT_RESOURCE(res_prediction,
          res_event_handler);
 
 void trigger_prediction_event() {
-    last_prediction = 1;
-     LOG_INFO("[Prediction] Triggering prediction event, value: %.2f\n", last_prediction);
-    // last_prediction = predict_temperature();
+    static bool toggle_high = true;
+
+    if(toggle_high) {
+        last_prediction = MEAN_TEMPERATURE + 3.0f * STD_TEMPERATURE;
+    } else {
+        last_prediction = MEAN_TEMPERATURE - 3.0f * STD_TEMPERATURE;
+    }
+    toggle_high = !toggle_high;
+
+    LOG_INFO("[Prediction] Triggering prediction event, value: %.2f\n", last_prediction);
     res_prediction.trigger();
 }
 
