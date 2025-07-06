@@ -10,6 +10,8 @@
 extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
+extern coap_observee_t *obs_light;
+
 // Sensor control interface
 void sensor_on(void);
 void sensor_off(void);

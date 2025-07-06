@@ -36,14 +36,11 @@ void sensor_off(void) {
 
     LOG_INFO("[ActuatorCtrl] Shutting down Light Actuator\n");
 
-    // Rimuove osservazioni attive sulla risorsa "light"
-    coap_remove_observer_by_uri("light");
-
-    // Disattiva le risorse CoAP
-    extern coap_resource_t res_led;
-    coap_deactivate_resource(&res_led);
-    coap_deactivate_resource(&res_on);
-    coap_deactivate_resource(&res_off);
+    if (obs_light) {
+    coap_obs_remove_observee(obs_light);
+    obs_light = NULL;
+    LOG_INFO("[ActuatorCtrl] Light observer removed\n");
+  }
 
     process_exit(&light_actuator_process);
     LOG_INFO("[ActuatorCtrl] light_actuator_process exited\n");

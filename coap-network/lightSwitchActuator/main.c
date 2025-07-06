@@ -16,7 +16,7 @@ AUTOSTART_PROCESSES(&light_actuator_process);
 static int registered = 0;
 static char light_ip[64];
 static coap_endpoint_t light_ep;
-static coap_observee_t *obs_light = NULL;
+coap_observee_t *obs_light = NULL;
 
 static char light_service_payload[128] = "";
 
