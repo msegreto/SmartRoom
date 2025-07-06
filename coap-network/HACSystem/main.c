@@ -184,6 +184,7 @@ PROCESS_THREAD(actuator_process, ev, data)
   registered = 0;
   retry = 0;
 
+  coap_activate_resource(&res_status, "status");
   while (retry < MAX_REGISTRATION_RETRY && !registered) {
     coap_init_message(request, COAP_TYPE_CON, COAP_POST, 0);
     coap_set_header_uri_path(request, "/" REGISTRATION_RESOURCE_PATH);
@@ -302,7 +303,6 @@ PROCESS_THREAD(actuator_process, ev, data)
 
   coap_activate_resource(&res_set_threshold, "set_limit");
   coap_activate_resource(&res_get_threshold, "get_limit");
-  coap_activate_resource(&res_status, "status");
   coap_activate_resource(&res_on, "onhac");
   coap_activate_resource(&res_off, "offhac");
 
