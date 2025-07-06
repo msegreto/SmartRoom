@@ -38,15 +38,8 @@ void sensor_off(void) {
     LOG_INFO("[SensorCtrl] Turning OFF sensor\n");
 
     // Rimuove osservatori CoAP dalla risorsa "light"
-    coap_remove_observers_by_uri("light");
+    coap_notify_observers_cancel(&res_status);
 
-    // Disattiva risorse CoAP
-    extern coap_resource_t res_light;
-    coap_deactivate_resource(&res_light);
-    coap_deactivate_resource(&res_on);
-    coap_deactivate_resource(&res_off);
-
-    // Ferma processo
     process_exit(&light_sensor_main_process);
     LOG_INFO("[SensorCtrl] light_sensor_main_process exited\n");
 

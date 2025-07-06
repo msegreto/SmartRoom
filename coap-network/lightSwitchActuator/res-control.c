@@ -37,10 +37,10 @@ void sensor_off(void) {
     LOG_INFO("[ActuatorCtrl] Shutting down Light Actuator\n");
 
     if (obs_light) {
-    coap_obs_remove_observee(obs_light);
-    obs_light = NULL;
-    LOG_INFO("[ActuatorCtrl] Light observer removed\n");
-  }
+        coap_obs_remove_observee(obs_light);
+        obs_light = NULL;
+        LOG_INFO("[ActuatorCtrl] Light observer removed\n");
+    }
 
     process_exit(&light_actuator_process);
     LOG_INFO("[ActuatorCtrl] light_actuator_process exited\n");

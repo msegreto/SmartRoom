@@ -19,7 +19,6 @@
 PROCESS(light_sensor_main_process, "Light Sensor Main Process");
 AUTOSTART_PROCESSES(&light_sensor_main_process);
 
-extern coap_resource_t res_light;
 
 static int registered = 0;
 

@@ -8,6 +8,8 @@
 extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
+extern coap_resource_t res_light;
+
 // Sensor control functions
 void sensor_on(void);
 void sensor_off(void);
