@@ -3,6 +3,7 @@
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
 #include "config.h"
+#include "res-control.h"
 #include "leds.h"
 #include "../cJSON-master/cJSON.h" 
 
@@ -132,7 +133,6 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   LOG_INFO("Light Actuator starting...\n");
 
   coap_engine_init();
-  //led_init(); ??? // Assuming there's a function to initialize the LED, if needed
   
   LOG_INFO("[LightSystemAct] Waiting for network establishment...\n");
   etimer_set(&timer, CLOCK_SECOND * 10);
@@ -151,6 +151,8 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
     cJSON_AddStringToObject(root, "s", "LightActuator");
     cJSON *res = cJSON_CreateArray();
     cJSON_AddItemToArray(res, cJSON_CreateString("led"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("onlightactuator"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("offlightactuator"));
     cJSON_AddItemToObject(root, "ss", res);
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -241,6 +243,8 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   // Attiva la risorsa LED
   extern coap_resource_t res_led;
   coap_activate_resource(&res_led, "led");
+  coap_activate_resource(&res_on, "onlightactuator");
+  coap_activate_resource(&res_off, "offlightactuator");
   
   LOG_INFO("Light Actuator ready\n");
   LOG_INFO("LED resource activated at /led\n");

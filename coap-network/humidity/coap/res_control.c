@@ -1,4 +1,3 @@
-// coap/res_control.c
 #include "res_control.h"
 
 static void res_get_on(coap_message_t *request, coap_message_t *response,

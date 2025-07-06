@@ -1,15 +1,16 @@
 #ifndef RES_CONTROL_H
 #define RES_CONTROL_H
 
+#include "contiki.h"
 #include "coap-engine.h"
+#include <stdio.h>
 
-extern coap_resource_t res_set_threshold;
-extern coap_resource_t res_get_threshold;
-extern coap_resource_t res_status;
+
+// Resource declarations for sensor control (on/off)
 extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
-void trigger_status_change(void);
+// Sensor control interface
 void sensor_on(void);
 void sensor_off(void);
 

@@ -1,0 +1,68 @@
+#include "res_control.h"
+#include "coap-engine.h"
+#include "sys/log.h"
+
+#define LOG_MODULE "LightResControl"
+#define LOG_LEVEL LOG_LEVEL_APP
+
+extern struct process light_actuator_process;
+
+static int is_on = 1;
+
+// === Handler CoAP per accensione/spegnimento ===
+
+static void res_get_on(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
+    sensor_on();
+    const char *msg = "Light actuator ON";
+    coap_set_payload(response, (uint8_t *)msg, strlen(msg));
+}
+
+static void res_get_off(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
+    sensor_off();
+    const char *msg = "Light actuator OFF";
+    coap_set_payload(response, (uint8_t *)msg, strlen(msg));
+}
+
+RESOURCE(res_on, "title=\"Light actuator ON\"", res_get_on, NULL, NULL, NULL);
+RESOURCE(res_off, "title=\"Light actuator OFF\"", res_get_off, NULL, NULL, NULL);
+
+// === Funzioni di gestione processo e CoAP ===
+
+void sensor_off(void) {
+    if (!is_on) {
+        LOG_INFO("[ActuatorCtrl] Already OFF\n");
+        return;
+    }
+
+    LOG_INFO("[ActuatorCtrl] Shutting down Light Actuator\n");
+
+    // Rimuove osservazioni attive sulla risorsa "light"
+    coap_remove_observers_by_uri("light");
+
+    // Disattiva le risorse CoAP
+    extern coap_resource_t res_led;
+    coap_deactivate_resource(&res_led);
+    coap_deactivate_resource(&res_on);
+    coap_deactivate_resource(&res_off);
+
+    process_exit(&light_actuator_process);
+    LOG_INFO("[ActuatorCtrl] light_actuator_process exited\n");
+
+    is_on = 0;
+}
+
+void sensor_on(void) {
+    if (is_on) {
+        LOG_INFO("[ActuatorCtrl] Already ON\n");
+        return;
+    }
+
+    LOG_INFO("[ActuatorCtrl] Restarting Light Actuator\n");
+
+    if (!process_is_running(&light_actuator_process)) {
+        process_start(&light_actuator_process, NULL);
+        LOG_INFO("[ActuatorCtrl] light_actuator_process started\n");
+    }
+
+    is_on = 1;
+}

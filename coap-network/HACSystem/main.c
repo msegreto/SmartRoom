@@ -195,6 +195,8 @@ PROCESS_THREAD(actuator_process, ev, data)
     cJSON_AddItemToArray(res, cJSON_CreateString("set_limit"));
     cJSON_AddItemToArray(res, cJSON_CreateString("get_limit"));
     cJSON_AddItemToArray(res, cJSON_CreateString("status"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("onhac"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("offhac"));
     cJSON_AddItemToObject(root, "ss", res);
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -302,6 +304,8 @@ PROCESS_THREAD(actuator_process, ev, data)
   coap_activate_resource(&res_set_threshold, "set_limit");
   coap_activate_resource(&res_get_threshold, "get_limit");
   coap_activate_resource(&res_status, "status");
+  coap_activate_resource(&res_on, "onhac");
+  coap_activate_resource(&res_off, "offhac");
 
   if (!obs_temp || !obs_hum) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");
