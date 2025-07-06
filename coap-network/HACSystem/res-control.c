@@ -11,6 +11,8 @@
 #include "sys/log.h"
 
 extern struct process actuator_process;
+extern coap_observee_t *obs_temp;
+extern coap_observee_t *obs_hum;
 
 static int is_on = 1; // inizialmente il processo è attivo
 
@@ -111,20 +113,20 @@ void sensor_off(void) {
 
   LOG_INFO("[ActuatorCtrl] Turning OFF actuator process\n");
 
-  // Rimuove tutte le osservazioni attive
-  coap_remove_observers_by_uri("predt");
-  coap_remove_observers_by_uri("predh");
-  LOG_INFO("[ActuatorCtrl] Observers removed by URI\n");
+  // Rimuove osservazioni CoAP se presenti
+  if (obs_temp) {
+    coap_obs_remove_observee(obs_temp);
+    obs_temp = NULL;
+    LOG_INFO("[ActuatorCtrl] Temperature observer removed\n");
+  }
 
-  // Disattiva le risorse
-  coap_deactivate_resource(&res_set_threshold);
-  coap_deactivate_resource(&res_get_threshold);
-  coap_deactivate_resource(&res_status);
-  coap_deactivate_resource(&res_on);
-  coap_deactivate_resource(&res_off);
-  LOG_INFO("[ActuatorCtrl] Resources deactivated\n");
+  if (obs_hum) {
+    coap_obs_remove_observee(obs_hum);
+    obs_hum = NULL;
+    LOG_INFO("[ActuatorCtrl] Humidity observer removed\n");
+  }
 
-  // Termina il processo
+  // Termina il processo principale
   process_exit(&actuator_process);
   LOG_INFO("[ActuatorCtrl] actuator_process exited\n");
 

@@ -18,8 +18,8 @@ static int registered = 0;
 static char temp_ip[64];
 static char hum_ip[64];
 static coap_endpoint_t temp_ep, hum_ep;
-static coap_observee_t *obs_temp = NULL;
-static coap_observee_t *obs_hum = NULL;
+coap_observee_t *obs_temp = NULL;
+coap_observee_t *obs_hum = NULL;
 
 static char temp_service_payload[128] = "";
 static char hum_service_payload[128] = "";
