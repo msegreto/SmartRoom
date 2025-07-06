@@ -61,7 +61,6 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
   LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
 }
 
-
 void discovery_response_handler_temp(coap_message_t *response) {
   discovery_response_handler(response, temp_service_payload, sizeof(temp_service_payload));
 }

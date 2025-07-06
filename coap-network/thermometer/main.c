@@ -28,6 +28,82 @@ extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
 static int registered = 0;
+static char hac_ip[64];
+static coap_endpoint_t hac_ep;
+coap_observee_t *obs_hac = NULL;
+
+static char hac_service_payload[128] = "";
+
+static void print_hex(const uint8_t *data, int len) {
+  printf("[HEX] ");
+  for (int i = 0; i < len; ++i) {
+    printf("%02X ", data[i]);
+  }
+  printf("\n");
+}
+
+void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
+  if (!response || !buffer) {
+    LOG_WARN("[DISCOVERY] No response or buffer null\n");
+    return;
+  }
+
+  const uint8_t *chunk;
+  int len = coap_get_payload(response, &chunk);
+  if (len <= 0 || len >= buffer_len) {
+    LOG_WARN("[DISCOVERY] Invalid or empty payload\n");
+    buffer[0] = '\0';
+    return;
+  }
+
+  memcpy(buffer, chunk, len);
+  buffer[len] = '\0';
+  
+  
+  if (strstr(buffer, "not found") != NULL) {
+    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", buffer);
+    buffer[0] = '\0';  
+    return;
+  }
+
+  // Stampa solo se la risposta è valida
+  print_hex(chunk, len);
+  LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
+}
+
+void discovery_response_handler_hac(coap_message_t *response) {
+  discovery_response_handler(response, hac_service_payload, sizeof(hac_service_payload));
+}
+
+void hac_response_handler(coap_message_t *response) {
+  if (!response) {
+    LOG_WARN("[HAC] No response received\n");
+    return;
+  }
+
+  const uint8_t *chunk;
+  int len = coap_get_payload(response, &chunk);
+  if (len > 0) {
+    char buffer[64];
+    memcpy(buffer, chunk, len);
+    buffer[len] = '\0';
+    LOG_INFO("[HAC] Notification payload: %s\n", buffer);
+    float value;
+    if (sscanf(buffer, "%f", &value) == 1) {
+      LOG_INFO("[HAC] Parsed value: %.2f°C\n", value);
+      //HERE SOME LOGIC TO HANDLE THE TEMPERATURE VALUE
+    } else {
+      LOG_WARN("[HAC] Failed to parse float from: %s\n", buffer);
+    }
+  } else {
+    LOG_WARN("[HAC] Empty payload\n");
+  }
+}
+
+void hac_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
+  LOG_INFO("[HAC] Notification received\n");
+  if (notification) hac_response_handler((coap_message_t *)notification);
+}
 
 static void client_chunk_handler(coap_message_t *response) {
   LOG_INFO("[Thermometer] === RESPONSE HANDLER CALLED ===\n");
@@ -61,10 +137,11 @@ static void client_chunk_handler(coap_message_t *response) {
 }
 
 PROCESS_THREAD(thermometer_process, ev, data) {
-  static struct etimer timer;
+  static struct etimer timer, init_timer;
   static coap_endpoint_t server_ep;
   static coap_message_t request[1];
   static int retry;
+  static int success;
 
   PROCESS_BEGIN();
 
@@ -113,11 +190,9 @@ PROCESS_THREAD(thermometer_process, ev, data) {
 
     LOG_INFO("[Thermometer] JSON payload (len=%zu): %s\n", strlen(payload), payload);
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
-    LOG_INFO("[Thermometer] Sending registration request to fd00::1:5683...\n");
-    LOG_INFO("[Thermometer] Request details - Type: CON, Method: POST, URI: /%s\n", REGISTRATION_RESOURCE_PATH);
+    LOG_INFO("[Thermometer] Sending registration request ...\n");
 
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
-    LOG_INFO("[Thermometer] COAP_BLOCKING_REQUEST completed, checking response...\n");
     free(payload);
 
     if(!registered) {
@@ -132,13 +207,74 @@ PROCESS_THREAD(thermometer_process, ev, data) {
     PROCESS_EXIT();
   }
 
+  LOG_INFO("Registration successful!\n");
+
   // Attiva risorse e avvia sensing
   coap_activate_resource(&res_latest, "temp");
   coap_activate_resource(&res_prediction, "predt");
   coap_activate_resource(&res_on, "ont");
   coap_activate_resource(&res_off, "offt");
 
-  sensor_on();
+  LOG_INFO("[Thermometer] Starting service discovery for HACstatus\n");
+
+  retry = 0;
+  success = 0;
+
+  do {
+    static coap_endpoint_t disc_ep_hac;
+    static coap_message_t disc_req_hac[1];
+    success = 1;
+
+    if (!coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &disc_ep_hac)) {
+      LOG_ERR("[DISCOVERY] Failed to parse CLOUD_SERVER_EP for HAC status\n");
+      success = 0;
+    } else {
+      coap_init_message(disc_req_hac, COAP_TYPE_CON, COAP_GET, 0);
+      coap_set_header_uri_path(disc_req_hac, SERVICE_DISCOVERY_PATH);
+      coap_set_header_uri_query(disc_req_hac, QUERY_HAC);
+      LOG_INFO("[DISCOVERY] Sending GET to %s?%s\n", SERVICE_DISCOVERY_PATH, QUERY_HAC);
+      COAP_BLOCKING_REQUEST(&disc_ep_hac, disc_req_hac, discovery_response_handler_hac);
+
+      if (strlen(hac_service_payload) == 0) {
+        LOG_WARN("[DISCOVERY] Empty or invalid response for HAC status\n");
+        success = 0;
+      } else if (!coap_endpoint_parse(hac_service_payload, strlen(hac_service_payload), &hac_ep)) {
+        LOG_WARN("[DISCOVERY] Failed to parse endpoint for  HAC status\n");
+        success = 0;
+      } else {
+        strncpy(hac_ip, hac_service_payload, sizeof(hac_ip) - 1);
+        hac_ip[sizeof(hac_ip) - 1] = '\0';
+        LOG_INFO("[DISCOVERY] Parsed hac IP: %s\n", hac_ip);
+      }
+    }
+
+    if (!success) {
+      retry++;
+      LOG_WARN("[DISCOVERY] Failed. Retrying in 10 seconds (%d/5)...\n", retry);
+      etimer_set(&init_timer, CLOCK_SECOND * 10);
+      PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&init_timer));
+    }
+
+  } while (retry < 5 && !success);
+
+  if (!success || strlen(hac_ip) == 0 ) {
+    LOG_ERR("Could not discover required services or IPs are empty\n");
+    //NO PROCESS_EXIT() HERE BECAUSE IT CAN STILL WORK WITHOUT HAC
+  }
+  
+  LOG_INFO("[LightSystemAct] Starting observation of discovered services\n");
+
+  obs_hac = coap_obs_request_registration(&hac_ep, "status", hac_notification_handler, NULL);
+  
+  if (!obs_hac) {
+    LOG_ERR("Failed to set up observations. Exiting process.\n");
+    //NO PROCESS_EXIT() HERE BECAUSE IT CAN STILL WORK WITHOUT HAC
+  }
+
+  if (success && strlen(hac_ip) > 0 && obs_hac){
+    LOG_INFO("Observations set up successfully.\n");
+  }
+
   etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
 
   while(1) {

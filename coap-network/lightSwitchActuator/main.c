@@ -182,7 +182,7 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   }
 
   LOG_INFO("Registration successful!\n");
-  LOG_INFO("[LightSystemAct] Starting service discovery for temperature and humidity\n");
+  LOG_INFO("[LightSystemAct] Starting service discovery for light\n");
 
   retry = 0;
   success = 0;
