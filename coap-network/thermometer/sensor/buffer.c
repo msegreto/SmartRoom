@@ -1,4 +1,3 @@
-// sensor/buffer.c
 #include "buffer.h"
 
 static float temperature_buffer[BUFFER_SIZE];

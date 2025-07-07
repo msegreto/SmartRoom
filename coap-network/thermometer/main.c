@@ -273,11 +273,10 @@ PROCESS_THREAD(thermometer_process, ev, data) {
   if (!success || strlen(hac_ip) == 0 ) {
     LOG_ERR("Could not discover required services or IPs are empty\n");
     //NO PROCESS_EXIT() HERE BECAUSE IT CAN STILL WORK WITHOUT HAC
+  } else {
+    LOG_INFO("[LightSystemAct] Starting observation of discovered services\n");
+    obs_hac = coap_obs_request_registration(&hac_ep, "status", hac_notification_handler, NULL);
   }
-  
-  LOG_INFO("[LightSystemAct] Starting observation of discovered services\n");
-
-  obs_hac = coap_obs_request_registration(&hac_ep, "status", hac_notification_handler, NULL);
   
   if (!obs_hac) {
     LOG_ERR("Failed to set up observations. Exiting process.\n");

@@ -1,15 +1,14 @@
-#ifndef PREDICTION_H
-#define PREDICTION_H
+#ifndef RES_PREDICTION_H
+#define RES_PREDICTION_H
 
-
+#include "contiki.h"
+#include "coap-engine.h"
+#include <stdio.h>
+#include "prediction.h"
 #include "config.h"
-#include "buffer.h"
 
-void sensor_on(void);
-void sensor_off(void);
-int sensor_is_active(void);
-float generate_random_humidity(void);
-void update_buffer(float value);
-int buffer_is_full(void);
+extern coap_resource_t res_prediction;
+void trigger_prediction_event(void);
 
-#endif /* PREDICTION_H */
+#endif /* RES_PREDICTION_H */
+
