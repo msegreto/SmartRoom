@@ -36,8 +36,8 @@ public class RegisterResource extends CoapResource {
             
             for (String resource : reg.services) {
                 final Observer observerClient = new Observer(nodeIP, resource);
-                Thread observertThread = new Thread(observerClient);
-                observertThread.start();
+                Thread observerThread = new Thread(observerClient);
+                observerThread.start();
             }
         
         } else {
@@ -46,19 +46,13 @@ public class RegisterResource extends CoapResource {
         }
     }
 
-    /**
-     * Parse manuale del JSON di registrazione (senza librerie esterne)
-     */
     private DeviceRegistration parseRegistrationJSON(String json) {
         try {
-            // Rimuovi spazi e caratteri di controllo
             json = json.trim();
             
-            // Estrai il campo "s" (device ID)
             String deviceId = extractStringField(json, "\"s\"");
             if (deviceId == null) return null;
             
-            // Estrai il campo "ss" (services array)
             String[] services = extractArrayField(json, "\"ss\"");
             if (services == null) return null;
             
@@ -73,11 +67,11 @@ public class RegisterResource extends CoapResource {
     private String extractStringField(String json, String fieldName) {
         try {
             int startIndex = json.indexOf(fieldName + ":") + fieldName.length() + 1;
-            // Salta spazi e cerca la virgoletta di apertura
+            
             while (startIndex < json.length() && json.charAt(startIndex) != '"') {
                 startIndex++;
             }
-            startIndex++; // Salta la virgoletta di apertura
+            startIndex++;
             
             int endIndex = startIndex;
             while (endIndex < json.length() && json.charAt(endIndex) != '"') {
@@ -93,11 +87,11 @@ public class RegisterResource extends CoapResource {
     private String[] extractArrayField(String json, String fieldName) {
         try {
             int startIndex = json.indexOf(fieldName + ":") + fieldName.length() + 1;
-            // Trova la parentesi quadra di apertura
+            
             while (startIndex < json.length() && json.charAt(startIndex) != '[') {
                 startIndex++;
             }
-            startIndex++; // Salta '['
+            startIndex++;
             
             int endIndex = startIndex;
             int bracketCount = 1;
@@ -106,11 +100,10 @@ public class RegisterResource extends CoapResource {
                 if (json.charAt(endIndex) == ']') bracketCount--;
                 endIndex++;
             }
-            endIndex--; // Torna indietro alla ']'
+            endIndex--;
             
             String arrayContent = json.substring(startIndex, endIndex);
             
-            // Parse degli elementi dell'array
             String[] elements = arrayContent.split(",");
             for (int i = 0; i < elements.length; i++) {
                 elements[i] = elements[i].trim().replaceAll("\"", "");
@@ -121,9 +114,7 @@ public class RegisterResource extends CoapResource {
             return null;
         }
     }
-    /**
-     * Classe interna per rappresentare una registrazione
-     */
+
     private static class DeviceRegistration {
         String deviceId;
         String[] services;

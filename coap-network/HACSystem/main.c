@@ -191,9 +191,9 @@ PROCESS_THREAD(actuator_process, ev, data)
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "s", "HACSys");
     cJSON *res = cJSON_CreateArray();
-    cJSON_AddItemToArray(res, cJSON_CreateString("set_limit"));
-    cJSON_AddItemToArray(res, cJSON_CreateString("get_limit"));
-    cJSON_AddItemToArray(res, cJSON_CreateString("status"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("set_lim"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("get_lim"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("sts"));
     cJSON_AddItemToArray(res, cJSON_CreateString("onhac"));
     cJSON_AddItemToArray(res, cJSON_CreateString("offhac"));
     cJSON_AddItemToObject(root, "ss", res);
@@ -227,9 +227,9 @@ PROCESS_THREAD(actuator_process, ev, data)
   LOG_INFO("Registration successful!\n");
 
   // Attiva risorse e avvia sensing
-  coap_activate_resource(&res_set_threshold, "set_limit");
-  coap_activate_resource(&res_get_threshold, "get_limit");
-  coap_activate_resource(&res_status, "status");
+  coap_activate_resource(&res_set_threshold, "set_lim");
+  coap_activate_resource(&res_get_threshold, "get_lim");
+  coap_activate_resource(&res_status, "sts");
   coap_activate_resource(&res_on, "onhac");
   coap_activate_resource(&res_off, "offhac");
 

@@ -11,9 +11,16 @@ import java.util.List;
 
 public class LoggerSaver {
     String resource = null;
+    String dataType = null;
 
     public LoggerSaver(String resource) {
         this.resource = resource;
+
+        if(isResourceFloatType())
+            this.dataType = "FLOAT";
+        else
+            this.dataType = "VARCHAR(255)";
+
         try {
             createLogTable();
         } catch (SQLException e) {
@@ -23,10 +30,9 @@ public class LoggerSaver {
     }
     
     private void createLogTable() throws SQLException {
-        deleteLogTable();
         String createTableSQL = "CREATE TABLE IF NOT EXISTS " + resource + "_log ("
                 + "id INT AUTO_INCREMENT PRIMARY KEY, "
-                + "value VARCHAR(255) NOT NULL,"
+                + "value " + dataType + " NOT NULL,"
                 + "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
                 + ")";
         
@@ -45,7 +51,12 @@ public class LoggerSaver {
         
         try (Connection conn = Database.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
-            pstmt.setString(1, value);
+            if(isResourceFloatType()){
+                value = value.replace(",", ".");
+                pstmt.setFloat(1, Float.parseFloat(value));
+            }
+            else
+                pstmt.setString(1, value);
             pstmt.executeUpdate();
             // Log save is silent unless it fails
         } catch (SQLException e) {
@@ -67,34 +78,11 @@ public class LoggerSaver {
         }
     }
 
-    public List<Log> showLogs() throws SQLException {
-        String selectSQL = "SELECT * FROM " + resource + "_log";
-        List<Log> logs = new ArrayList<>();
+    private Boolean isResourceFloatType() {
+        String[] floatResources = {
+            "temp", "hum", "predt", "predh"
+        };
         
-        try (Connection conn = Database.getConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(selectSQL)) {
-            
-            System.out.println("[LoggerSaver] Logs for resource: " + resource);
-            while (rs.next()) {
-                Log log = new Log();
-                log.id = rs.getInt("id");
-                log.value = rs.getString("value");
-                log.timestamp = rs.getTimestamp("timestamp");
-                logs.add(log);
-            }
-            return logs;
-
-        } catch (SQLException e) {
-            System.err.println("Error retrieving logs: " + e.getMessage());
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    private class Log{
-        private int id;
-        private String value;
-        private Timestamp timestamp;
+        return List.of(floatResources).contains(resource);
     }
 }
