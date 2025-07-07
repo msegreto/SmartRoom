@@ -1,14 +1,11 @@
-#ifndef RES_PREDICTION_H
-#define RES_PREDICTION_H
+#ifndef PREDICTION_H
+#define PREDICTION_H
 
-#include "contiki.h"
-#include "coap-engine.h"
-#include <stdio.h>
-#include "prediction.h"
-#include "config.h"
+float predict_humid(void);
 
-extern coap_resource_t res_prediction;
-void trigger_prediction_event(void);
+#define SCALE 10       
+#define MIN_INPUT 0    
 
-#endif /* RES_PREDICTION_H */
+#endif // PREDICTION_H
+
 
