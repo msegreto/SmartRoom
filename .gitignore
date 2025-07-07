@@ -2,5 +2,7 @@
 build/
 cooja/
 smart_sensors.csv
-smart_sensors_smoothed.csv
+smart_sensors_quantized.csv
 TODO.md
+final_humid_model.joblib
+final_temp_model.joblib
