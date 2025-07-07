@@ -26,7 +26,9 @@ public class Observer implements Runnable{
             public void onLoad(CoapResponse response) {
                 String responseText = response.getResponseText();
                 System.out.println("[Observer] 📥 Received notification from " + resourceURI + ": " + responseText);
-
+                if (responseText == null || responseText.trim().isEmpty()) {
+                    return; // Skip empty notifications
+                }
 
                 String payload = responseText.trim();
                 
