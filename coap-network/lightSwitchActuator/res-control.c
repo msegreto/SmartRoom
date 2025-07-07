@@ -11,20 +11,35 @@ static int is_on = 1;
 
 // === Handler CoAP per accensione/spegnimento ===
 
-static void res_get_on(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
+static void res_post_on(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
     sensor_on();
     const char *msg = "Light actuator ON";
     coap_set_payload(response, (uint8_t *)msg, strlen(msg));
 }
 
-static void res_get_off(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
+static void res_post_off(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
     sensor_off();
     const char *msg = "Light actuator OFF";
     coap_set_payload(response, (uint8_t *)msg, strlen(msg));
 }
 
-RESOURCE(res_on, "title=\"Light actuator ON\"", res_get_on, NULL, NULL, NULL);
-RESOURCE(res_off, "title=\"Light actuator OFF\"", res_get_off, NULL, NULL, NULL);
+static void res_get(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
+  if(is_on) {
+    LOG_INFO("[ActuatorCtrl] Actuator is  ON\n");
+    const char *msg = "Actuator is  ON";
+    coap_set_payload(response, (uint8_t *)msg, strlen(msg));
+    return;
+  }
+  else {
+    LOG_INFO("[ActuatorCtrl] Actuator is  OFF\n");
+    const char *msg = "Actuator is  OFF";
+    coap_set_payload(response, (uint8_t *)msg, strlen(msg));
+    return;
+  }
+}
+
+RESOURCE(res_on, "title=\"Light actuator ON\"", res_get, res_post_on, NULL, NULL);
+RESOURCE(res_off, "title=\"Light actuator OFF\"", res_get, res_post_off, NULL, NULL);
 
 // === Funzioni di gestione processo e CoAP ===
 
