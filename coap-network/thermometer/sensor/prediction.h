@@ -1,15 +1,9 @@
 #ifndef PREDICTION_H
 #define PREDICTION_H
 
+float predict_temperature(void);
 
-#include "config.h"
-#include "buffer.h"
+#define SCALE 10       
+#define MIN_INPUT 0    
 
-void sensor_on(void);
-void sensor_off(void);
-int sensor_is_active(void);
-float generate_random_temperature(void);
-void update_buffer(float value);
-int buffer_is_full(void);
-
-#endif /* PREDICTION_H */
+#endif // PREDICTION_H
