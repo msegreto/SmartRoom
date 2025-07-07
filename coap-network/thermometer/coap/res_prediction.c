@@ -5,7 +5,7 @@
 #define LOG_MODULE "res_prediction"
 #define LOG_LEVEL LOG_LEVEL_APP
 
-static float last_prediction = 0;
+static float last_prediction = MEAN_TEMPERATURE; 
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 static void res_event_handler(void);
@@ -17,9 +17,8 @@ EVENT_RESOURCE(res_prediction,
          res_event_handler);
 
 void trigger_prediction_event() {
-    last_prediction = 1;
-     LOG_INFO("[Prediction] Triggering prediction event, value: %.2f\n", last_prediction);
-    // last_prediction = predict_temperature();
+    last_prediction = predict_temperature();
+    LOG_INFO("[Prediction] Triggering prediction event, value: %.2f\n", last_prediction);
     res_prediction.trigger();
 }
 
@@ -30,16 +29,7 @@ static void res_event_handler(void) {
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-    LOG_INFO("[Prediction] GET request received\n");
-    
-    // Check if it's an OBSERVE request
-    if(coap_is_option(request, COAP_OPTION_OBSERVE)) {
-        LOG_INFO("[Prediction] 🔍 OBSERVE request detected!\n");
-        LOG_INFO("[Prediction] Adding observer to list\n");
-    } else {
-        LOG_INFO("[Prediction] Regular GET request (no observe)\n");
-    }
-    
+     // Simulating a prediction value
     int len = snprintf((char *)buffer, preferred_size, "%.2f", last_prediction);
 
     if (len > 0) {
