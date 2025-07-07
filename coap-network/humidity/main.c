@@ -137,7 +137,6 @@ PROCESS_THREAD(humidity_process, ev, data) {
   coap_activate_resource(&res_on, "onh");
   coap_activate_resource(&res_off, "offh");
 
-  sensor_on();
   etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
 
   while(1) {
