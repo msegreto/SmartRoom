@@ -4020,7 +4020,7 @@ EmlTrees temperature_forecast = {
         0,
     };
 
-static inline float temperature_forecast_tree_0(const int16 *features, int32_t features_length) {
+static inline float temperature_forecast_tree_0(const int16_t *features, int32_t features_length) {
           if (features[59] < 260) {
               if (features[59] < 222) {
                   if (features[59] < 202) {
@@ -20005,7 +20005,7 @@ static inline float temperature_forecast_tree_0(const int16 *features, int32_t f
         }
         
 
-float temperature_forecast_predict(const int16 *features, int32_t features_length) {
+float temperature_forecast_predict(const int16_t *features, int32_t features_length) {
 
         float avg = 0;
 

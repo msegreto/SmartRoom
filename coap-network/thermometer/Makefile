@@ -15,6 +15,7 @@ PROJECT_SOURCEFILES += \
 CFLAGS += -I$(CONTIKI_NG)/os/net/app-layer/coap
 CFLAGS += -I./sensor
 CFLAGS += -I./coap
+CFLAGS += -Wno-unused-function
 
 PROJECTDIRS += sensor coap
 
