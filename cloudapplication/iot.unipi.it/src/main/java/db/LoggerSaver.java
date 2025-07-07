@@ -33,9 +33,9 @@ public class LoggerSaver {
         try (Connection conn = Database.getConnection();
             Statement stmt = conn.createStatement()) {
             stmt.execute(createTableSQL);
-            System.out.println("[LoggerSaver] Successfully created table: " + resource + "_log");
+            // Table creation is silent unless it fails
         } catch (SQLException e) {
-            System.err.println("Error creating table: " + e.getMessage());
+            System.err.println("[LoggerSaver] Error creating table: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -47,7 +47,7 @@ public class LoggerSaver {
             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
             pstmt.setString(1, value);
             pstmt.executeUpdate();
-            System.out.println("[LoggerSaver] Successfully saved log for resource: " + resource + " with value: " + value);
+            // Log save is silent unless it fails
         } catch (SQLException e) {
             System.err.println("Error saving log: " + e.getMessage());
             e.printStackTrace();

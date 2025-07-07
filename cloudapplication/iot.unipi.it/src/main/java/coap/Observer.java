@@ -25,30 +25,29 @@ public class Observer implements Runnable{
             @Override
             public void onLoad(CoapResponse response) {
                 String responseText = response.getResponseText();
-                System.out.println("[Observer] 📥 Received notification from " + resourceURI + ": " + responseText);
                 if (responseText == null || responseText.trim().isEmpty()) {
-                    return; // Skip empty notifications
+                    return;
                 }
 
                 String payload = responseText.trim();
                 
                 try {
                     logger.saveLog(payload);
-                    System.out.println("[Observer] 📊 " + resourceURI + " → " + payload + " (saved to DB)");
+                    System.out.println("[Observer] " + resourceURI + " → " + payload);
                 } catch (Exception e) {
-                    System.err.println("[Observer] ❌ DB save failed for " + resourceURI + ": " + e.getMessage());
+                    System.err.println("[Observer] DB error for " + resourceURI + ": " + e.getMessage());
                 }
             }
             @Override
             public void onError() {
-                System.err.println("[Observer] ❌ OBSERVE failed for: " + resourceURI);
+                System.err.println("[Observer] Connection lost: " + resourceURI);
             }
         });
         
         if (relation != null && !relation.isCanceled()) {
-            System.out.println("[Observer] ✅ OBSERVE established for: " + resourceURI);
+            System.out.println("[Observer] Observing: " + resourceURI);
         } else {
-            System.err.println("[Observer] ❌ OBSERVE failed for: " + resourceURI);
+            System.err.println("[Observer] Failed to observe: " + resourceURI);
         }
     }
 

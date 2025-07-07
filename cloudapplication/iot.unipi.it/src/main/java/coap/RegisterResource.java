@@ -18,36 +18,31 @@ public class RegisterResource extends CoapResource {
         String nodeIP = exchange.getSourceAddress().getHostAddress();
         String payload = exchange.getRequestText();
         
-        System.out.println("[RegisterResource] Registration request from " + nodeIP);
-        
         DeviceRegistration reg = parseRegistrationJSON(payload);
         if (reg != null) {
             try {
-                // Save the registration in the database
                 if(!Database.saveDeviceRegistration(nodeIP, reg.deviceId, reg.services)){
                     exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Failed to save registration");
-                    System.err.println("[RegisterResource] Database save failed for device " + reg.deviceId);
+                    System.err.println("[Registration] DB save failed: " + reg.deviceId);
                     return;
                 }
             } catch (Exception e) {
                 exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR, "Database error: " + e.getMessage());
-                System.err.println("[RegisterResource] Database exception for device " + reg.deviceId + ": " + e.getMessage());
+                System.err.println("[Registration] DB error for " + reg.deviceId + ": " + e.getMessage());
                 return;
             }
-            
+
             exchange.respond(ResponseCode.CREATED, "Registration successful");
-            System.out.println("[RegisterResource] Device " + reg.deviceId + " registered successfully");
             
             for (String resource : reg.services) {
                 final Observer observerClient = new Observer(nodeIP, resource);
                 Thread observertThread = new Thread(observerClient);
                 observertThread.start();
-                System.out.println("[RegisterResource] Observer started for " + resource);
             }
-            
+        
         } else {
             exchange.respond(ResponseCode.BAD_REQUEST, "Invalid JSON payload");
-            System.err.println("[RegisterResource] Invalid JSON from " + nodeIP);
+            System.err.println("[Registration] Invalid JSON from " + nodeIP);
         }
     }
 

@@ -20,7 +20,7 @@ public class Database {
         try (Connection conn = DriverManager.getConnection(JDBC_URL1, JDBC_USER, JDBC_PASSWORD);
              Statement stmt = conn.createStatement()) {
             stmt.execute(createDatabaseSQL);
-            System.out.println("[Database] Database initialized");
+            // Database creation is silent unless it fails
         } catch (SQLException e) {
             System.err.println("[Database] Failed to create database: " + e.getMessage());
         }
@@ -33,7 +33,7 @@ public class Database {
         try (Connection conn = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
              Statement stmt = conn.createStatement()) {
             stmt.execute(deleteDatabaseSQL);
-            System.out.println("[Database] Database reset");
+            // Database deletion is silent unless it fails
         } catch (SQLException e) {
             System.err.println("[Database] Failed to delete database: " + e.getMessage());
         }
@@ -53,7 +53,7 @@ public class Database {
         try (Connection conn = getConnection();
             Statement stmt = conn.createStatement()) {
             stmt.execute(createTableSQL);
-            System.out.println("[Database] Tables created");
+            // Table creation is silent unless it fails
         } catch (SQLException e) {
             System.err.println("[Database] Table creation failed: " + e.getMessage());
         }
@@ -72,8 +72,8 @@ public class Database {
                 pstmt.addBatch();
             }
             
-            int[] results = pstmt.executeBatch();
-            System.out.println("[Database] Saved " + results.length + " resources for node " + nodeName);
+            pstmt.executeBatch();
+            // Registration saved silently unless it fails
             return true;
 
         } catch (SQLException e) {
@@ -94,10 +94,8 @@ public class Database {
             
             if (rs.next()) {
                 String nodeIP = rs.getString("nodeip");
-                System.out.println("[Database] Found resource '" + resourceName + "' at IP: " + nodeIP);
                 return nodeIP;
             } else {
-                System.out.println("[Database] Resource '" + resourceName + "' not found");
                 return null;
             }
             
