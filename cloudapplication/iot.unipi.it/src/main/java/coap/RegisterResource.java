@@ -1,11 +1,5 @@
 package coap;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Logger;
-
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -41,37 +35,22 @@ public class RegisterResource extends CoapResource {
                 return;
             }
             
-            // Start observers for data resources only
-            for (String resource : reg.services) {
-                if (isObservableResource(reg.deviceId, resource)) {
-                    final Observer observerClient = new Observer(nodeIP, resource);
-                    Thread observertThread = new Thread(observerClient);
-                    observertThread.start();
-                    System.out.println("[RegisterResource] Observer started for " + resource);
-                }
-            }
-            
             exchange.respond(ResponseCode.CREATED, "Registration successful");
             System.out.println("[RegisterResource] Device " + reg.deviceId + " registered successfully");
+            
+            for (String resource : reg.services) {
+                final Observer observerClient = new Observer(nodeIP, resource);
+                Thread observertThread = new Thread(observerClient);
+                observertThread.start();
+                System.out.println("[RegisterResource] Observer started for " + resource);
+            }
             
         } else {
             exchange.respond(ResponseCode.BAD_REQUEST, "Invalid JSON payload");
             System.err.println("[RegisterResource] Invalid JSON from " + nodeIP);
         }
     }
-    
-    private boolean isObservableResource(String deviceType, String resource) {
-        // Non osservare i comandi
-        String[] commandResources = {"on", "off", "toggle", "set", "reset", "start", "stop"};
-        
-        for (String command : commandResources) {
-            if (resource.equalsIgnoreCase(command)) {
-                return false;
-            }
-        }
-        return true; // Osserva tutto il resto
-    }
-    
+
     /**
      * Parse manuale del JSON di registrazione (senza librerie esterne)
      */

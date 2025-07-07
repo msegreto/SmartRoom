@@ -6,13 +6,13 @@ import db.Database;
 public class Main {
     static Database database = new Database();
     public static void main(String[] args) {
-        System.out.println("[Main] Starting SmartRoom CoAP Server...");
+        System.out.println("[Main] 🚀 Starting SmartRoom CoAP Server...");
         try {
             Database.deleteDatabase();
             Database.createDatabase();
             Database.createTableIPV6();
         } catch (Exception e) {
-            System.err.println("[Main] Database initialization failed: " + e.getMessage());
+            System.err.println("[Main] ❌ Database initialization failed: " + e.getMessage());
             e.printStackTrace();
         }
         MyServer server = new MyServer();
@@ -22,7 +22,7 @@ public class Main {
         
         server.start();
         
-        System.out.println("[Main] Server ready on port 5683");
-        System.out.println("[Main] Endpoints: /registration, /service");
+        System.out.println("[Main] ✅ Server ready on port 5683");
+        System.out.println("[Main] 🔗 Endpoints: /registration, /service");
     }
 }
