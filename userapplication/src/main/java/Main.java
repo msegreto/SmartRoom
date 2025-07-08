@@ -78,6 +78,7 @@ public class Main {
     }
 
     private static void showMenu() {
+        initializeIpv6Addresses();
         Scanner scanner = new Scanner(System.in);
         while (true) {
             System.out.println("\n== MENU ==");
