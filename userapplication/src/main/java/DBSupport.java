@@ -1,10 +1,15 @@
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 
 import Ipv6Service;
 
 public class DBSupport {
-    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/";
+    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/smartroom";
     private static final String JDBC_USER = "admin";
     private static final String JDBC_PASSWORD = "iotubuntu";
 
@@ -19,6 +24,10 @@ public class DBSupport {
             System.err.println("Errore durante la connessione al database: " + e.getMessage());
             System.exit(1);
         }
+    }
+
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
     }
 
     // Chiude la connessione al database (opzionale, buona pratica)
