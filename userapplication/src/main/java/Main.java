@@ -90,7 +90,6 @@ public class Main {
         }
     }
 
-
     public static void main(String[] args) {
         System.out.println("UserApp avviata. Inizio discovery...");
         DBSupport.connectToDatabase();
@@ -177,7 +176,7 @@ public class Main {
         String sensor = sensors.get(choice);
         if (sensor != null) {
             System.out.println("Toggle stato sensore: " + sensor);
-            sendCoapPostRequest(sensor, null);
+            sendCoapPostRequest(sensor,  "1");
         } else {
             System.out.println("Sensore non valido.");
         }
