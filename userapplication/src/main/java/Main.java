@@ -27,20 +27,34 @@ public class Main {
     public static void sendCoapGetRequest(String resource) {
         String nodeIp = ipv6Addresses.get(resource);
         if (nodeIp == null) {
-            System.out.println("IP non trovato per il servizio: " +resource);
+            System.out.println("[DEBUG] IP non trovato per il servizio: " + resource);
             return;
         }
 
         String uri = "coap://" + nodeIp + "/service?resource=" + resource;
+        System.out.println("[DEBUG] URI costruito: " + uri);
+
         CoapClient client = new CoapClient(uri);
         CoapResponse response = client.get();
 
         if (response != null) {
-            System.out.println("Risposta da " + resource + ": " + response.getResponseText());
+            int code = response.getCode().value;
+            String codeName = response.getCode().name();
+            String payload = response.getResponseText();
+
+            System.out.println("[DEBUG] Codice risposta: " + code + " (" + codeName + ")");
+            System.out.println("[DEBUG] Payload risposta (lunghezza " + payload.length() + "): \"" + payload + "\"");
+
+            if (!payload.isEmpty()) {
+                System.out.println("Risposta da " + resource + ": " + payload);
+            } else {
+                System.out.println("Risposta vuota da " + resource + ", ma codice: " + codeName);
+            }
         } else {
-            System.out.println("Errore nella richiesta CoAP a " + resource);
+            System.out.println("Errore: risposta CoAP nulla da " + resource);
         }
     }
+
 
     public static void sendCoapPostRequest(String resource, String payload) {
         String nodeIp = ipv6Addresses.get(resource);
