@@ -4,7 +4,7 @@ import java.util.*;
 import Ipv6Service;
 
 public class DBSupport {
-    private static final String JDBC_URL = "jdbc:mysql://localhost:3306";
+    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/";
     private static final String JDBC_USER = "admin";
     private static final String JDBC_PASSWORD = "iotubuntu";
 
