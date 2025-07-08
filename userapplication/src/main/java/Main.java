@@ -4,11 +4,7 @@ import java.util.Locale;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 
-import Ipv6Service;
-import DBSupport;
-
-
-public class UserApp {
+public class Main {
 
     // Lista dei servizi richiesti per considerare il sistema pronto
     private static final List<String> REQUIRED_SERVICES = List.of(

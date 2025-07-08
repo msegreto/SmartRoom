@@ -6,8 +6,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
 
-import Ipv6Service;
-
 public class DBSupport {
     private static final String JDBC_URL = "jdbc:mysql://localhost:3306/smartroom";
     private static final String JDBC_USER = "admin";
