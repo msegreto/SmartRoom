@@ -151,7 +151,7 @@ public class Main {
             "10","offhac"
         );
         System.out.println("lightsensor stands for LightSwitchSensor,\nlightactuator for LightSwitchActuator,\nh for Humidity, \nt for Thermometer,  \nhac for HACSystem");
-        System.out.println("Seleziona un sensore da attivare/disattivare:");
+        System.out.println("Seleziona un sensore da attivare/disattivare(numero):");
         sensors.forEach((k, v) -> System.out.println(k + ". " + v));
         System.out.print("Scelta: ");
         Scanner scanner = new Scanner(System.in);
@@ -160,7 +160,7 @@ public class Main {
         String sensor = sensors.get(choice);
         if (sensor != null) {
             System.out.println("Toggle stato sensore: " + sensor);
-            sendCoapGetRequest(sensor);
+            sendCoapPostRequest(sensor, null);
         } else {
             System.out.println("Sensore non valido.");
         }
