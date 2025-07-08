@@ -64,7 +64,7 @@ public class Main {
         }
 
         // Gestione IPv6: aggiunta parentesi quadre
-        String uri = "coap://[" + nodeIp + "]:5683/" + resource;
+        String uri = "coap://" + nodeIp + ":5683/" + resource;
         System.out.println("[DEBUG] URI costruito: " + uri);
         System.out.println("[DEBUG] Payload da inviare (lunghezza " + payload.length() + "): \"" + payload + "\"");
 
