@@ -3,6 +3,7 @@ import java.util.concurrent.*;
 import java.util.Locale;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 
 public class Main {
 
@@ -58,20 +59,37 @@ public class Main {
     public static void sendCoapPostRequest(String resource, String payload) {
         String nodeIp = ipv6Addresses.get(resource);
         if (nodeIp == null) {
-            System.out.println("IP non trovato per il servizio: " + resource);
+            System.out.println("[DEBUG] IP non trovato per il servizio: " + resource);
             return;
         }
 
-        String uri =  "coap://" + nodeIp + ":5683/" + resource;
+        // Gestione IPv6: aggiunta parentesi quadre
+        String uri = "coap://[" + nodeIp + "]:5683/" + resource;
+        System.out.println("[DEBUG] URI costruito: " + uri);
+        System.out.println("[DEBUG] Payload da inviare (lunghezza " + payload.length() + "): \"" + payload + "\"");
+
         CoapClient client = new CoapClient(uri);
-        CoapResponse response = client.post(payload, 0); // 0 = text/plain (media type)
+
+        CoapResponse response = client.post(payload, MediaTypeRegistry.TEXT_PLAIN);
 
         if (response != null) {
-            System.out.println("Risposta da " + resource + ": " + response.getResponseText());
+            int code = response.getCode().value;
+            String codeName = response.getCode().name();
+            String responsePayload = response.getResponseText();
+
+            System.out.println("[DEBUG] Codice risposta: " + code + " (" + codeName + ")");
+            System.out.println("[DEBUG] Payload risposta (lunghezza " + responsePayload.length() + "): \"" + responsePayload + "\"");
+
+            if (!responsePayload.isEmpty()) {
+                System.out.println("Risposta da " + resource + ": " + responsePayload);
+            } else {
+                System.out.println("Risposta vuota da " + resource + ", ma codice: " + codeName);
+            }
         } else {
-            System.out.println("Errore nella richiesta CoAP POST a " + resource);
+            System.out.println("Errore: risposta CoAP nulla da " + resource);
         }
     }
+
 
     public static void main(String[] args) {
         System.out.println("UserApp avviata. Inizio discovery...");
