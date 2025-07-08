@@ -7,11 +7,11 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 
 public class Main {
 
-    // Lista dei servizi richiesti per considerare il sistema pronto
+    // List of required services for the system to be considered ready
     private static final List<String> REQUIRED_SERVICES = List.of(
-        "led", "onlightactuator", "offlightact", "onh", "offh",
-        "ont", "offt", "set_lim", "get_lim", "sts", "onhac", "offhac",
-        "onlightsensor", "offlightsens"
+            "led", "onlightact", "offlightact", "onh", "offh",
+            "ont", "offt", "set_lim", "get_lim", "sts", "onhac", "offhac",
+            "onlightsen", "offlightsens"
     );
 
     private static final int DISCOVERY_INTERVAL_MS = 3000;
@@ -28,12 +28,12 @@ public class Main {
     public static void sendCoapGetRequest(String resource) {
         String nodeIp = ipv6Addresses.get(resource);
         if (nodeIp == null) {
-            System.out.println("[DEBUG] IP non trovato per il servizio: " + resource);
+            System.out.println("[DEBUG] IP not found for service: " + resource);
             return;
         }
 
         String uri =  "coap://" + nodeIp + ":5683/" + resource;
-        System.out.println("[DEBUG] URI costruito: " + uri);
+        System.out.println("[DEBUG] Built URI: " + uri);
 
         CoapClient client = new CoapClient(uri);
         CoapResponse response = client.get();
@@ -43,30 +43,30 @@ public class Main {
             String codeName = response.getCode().name();
             String payload = response.getResponseText();
 
-            System.out.println("[DEBUG] Codice risposta: " + code + " (" + codeName + ")");
-            System.out.println("[DEBUG] Payload risposta (lunghezza " + payload.length() + "): \"" + payload + "\"");
+            System.out.println("[DEBUG] Response code: " + code + " (" + codeName + ")");
+            System.out.println("[DEBUG] Response payload (length " + payload.length() + "): \"" + payload + "\"");
 
             if (!payload.isEmpty()) {
-                System.out.println("Risposta da " + resource + ": " + payload);
+                System.out.println("Response from " + resource + ": " + payload);
             } else {
-                System.out.println("Risposta vuota da " + resource + ", ma codice: " + codeName);
+                System.out.println("Empty response from " + resource + ", but code: " + codeName);
             }
         } else {
-            System.out.println("Errore: risposta CoAP nulla da " + resource);
+            System.out.println("Error: null CoAP response from " + resource);
         }
     }
 
     public static void sendCoapPostRequest(String resource, String payload) {
         String nodeIp = ipv6Addresses.get(resource);
         if (nodeIp == null) {
-            System.out.println("[DEBUG] IP non trovato per il servizio: " + resource);
+            System.out.println("[DEBUG] IP not found for service: " + resource);
             return;
         }
 
-        // Gestione IPv6: aggiunta parentesi quadre
+        // IPv6 handling: add square brackets
         String uri = "coap://" + nodeIp + ":5683/" + resource;
-        System.out.println("[DEBUG] URI costruito: " + uri);
-        System.out.println("[DEBUG] Payload da inviare (lunghezza " + payload.length() + "): \"" + payload + "\"");
+        System.out.println("[DEBUG] Built URI: " + uri);
+        System.out.println("[DEBUG] Payload to send (length " + payload.length() + "): \"" + payload + "\"");
 
         CoapClient client = new CoapClient(uri);
 
@@ -77,32 +77,32 @@ public class Main {
             String codeName = response.getCode().name();
             String responsePayload = response.getResponseText();
 
-            System.out.println("[DEBUG] Codice risposta: " + code + " (" + codeName + ")");
-            System.out.println("[DEBUG] Payload risposta (lunghezza " + responsePayload.length() + "): \"" + responsePayload + "\"");
+            System.out.println("[DEBUG] Response code: " + code + " (" + codeName + ")");
+            System.out.println("[DEBUG] Response payload (length " + responsePayload.length() + "): \"" + responsePayload + "\"");
 
             if (!responsePayload.isEmpty()) {
-                System.out.println("Risposta da " + resource + ": " + responsePayload);
+                System.out.println("Response from " + resource + ": " + responsePayload);
             } else {
-                System.out.println("Risposta vuota da " + resource + ", ma codice: " + codeName);
+                System.out.println("Empty response from " + resource + ", but code: " + codeName);
             }
         } else {
-            System.out.println("Errore: risposta CoAP nulla da " + resource);
+            System.out.println("Error: null CoAP response from " + resource);
         }
     }
 
     public static void main(String[] args) {
-        System.out.println("UserApp avviata. Inizio discovery...");
+        System.out.println("UserApp started. Beginning discovery...");
         DBSupport.connectToDatabase();
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
             List<String> availableServices = DBSupport.getAvailableServices();
             if (availableServices.containsAll(REQUIRED_SERVICES)) {
-                System.out.println("[Setup phase] Tutti i servizi sono disponibili. Puoi procedere.");
+                System.out.println("[Setup phase] All services are available. You can proceed.");
                 scheduler.shutdown();
                 showMenu();
             } else {
-                System.out.println("[Setup phase] Servizi non ancora completi. In attesa...");
+                System.out.println("[Setup phase] Services not yet complete. Waiting...");
             }
         }, 0, DISCOVERY_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
@@ -112,13 +112,13 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
         while (true) {
             System.out.println("\n== MENU ==");
-            System.out.println("1. Mostra lista completa servizi attivi");
-            System.out.println("2. Stato ON/OFF sensore");
-            System.out.println("3. Visualizza o setta threshold HAC");
-            System.out.println("4. Stato HAC");
-            System.out.println("5. Stato LED");
-            System.out.println("0. Esci");
-            System.out.print("Seleziona opzione: ");
+            System.out.println("1. Show full list of active services");
+            System.out.println("2. Sensor ON/OFF status");
+            System.out.println("3. View or set HAC thresholds");
+            System.out.println("4. HAC status");
+            System.out.println("5. LED status");
+            System.out.println("0. Exit");
+            System.out.print("Select option: ");
 
             String input = scanner.nextLine();
             switch (input) {
@@ -138,94 +138,94 @@ public class Main {
                     handleLedStatus();
                     break;
                 case "0":
-                    System.out.println("Chiusura applicazione...");
+                    System.out.println("Closing application...");
                     System.exit(0);
                 default:
-                    System.out.println("Opzione non valida.");
+                    System.out.println("Invalid option.");
             }
         }
     }
 
     private static void handleServiceList() {
         List<Ipv6Service> services = DBSupport.getIpv6Services();
-        System.out.println("Servizi IPv6 attivi:");
+        System.out.println("Active IPv6 services:");
         services.forEach(s -> System.out.println(" - " + s));
     }
 
     private static void handleSensorToggle() {
-        // Placeholder: lista statica per ora
+        // Placeholder: static list for now
         Map<String, String> sensors = Map.of(
-            "1", "onlightsens",
-            "2", "offlightsens",
-            "3", "onlightact",
-            "4","offlightact",
-            "5","onh", 
-            "6","offh",
-            "7","ont",
-            "8", "offt",
-            "9","onhac", 
-            "10","offhac"
+                "1", "onlightsens",
+                "2", "offlightsens",
+                "3", "onlightact",
+                "4","offlightact",
+                "5","onh",
+                "6","offh",
+                "7","ont",
+                "8", "offt",
+                "9","onhac",
+                "10","offhac"
         );
         System.out.println("lightsens stands for LightSwitchSensor,\nlightact for LightSwitchActuator,\nh for Humidity, \nt for Thermometer,  \nhac for HACSystem");
-        System.out.println("Seleziona un sensore da attivare/disattivare(numero):");
+        System.out.println("Select a sensor to activate/deactivate (number):");
         sensors.forEach((k, v) -> System.out.println(k + ". " + v));
-        System.out.print("Scelta: ");
+        System.out.print("Choice: ");
         Scanner scanner = new Scanner(System.in);
         String choice = scanner.nextLine();
 
         String sensor = sensors.get(choice);
         if (sensor != null) {
-            System.out.println("Toggle stato sensore: " + sensor);
+            System.out.println("Toggling sensor state: " + sensor);
             sendCoapPostRequest(sensor,  "1");
         } else {
-            System.out.println("Sensore non valido.");
+            System.out.println("Invalid sensor.");
         }
     }
 
     private static void handleThreshold() {
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("Cosa vuoi fare?");
-        System.out.println("1. Visualizza soglie HAC");
-        System.out.println("2. Modifica soglie HAC");
-        System.out.print("Scelta: ");
+        System.out.println("What would you like to do?");
+        System.out.println("1. View HAC thresholds");
+        System.out.println("2. Modify HAC thresholds");
+        System.out.print("Choice: ");
         String input = scanner.nextLine();
 
         if (input.equals("1")) {
-            // Comando per leggere le soglie attuali
-            System.out.println("Eseguo comando: get_lim");
+            // Command to read current thresholds
+            System.out.println("Executing command: get_lim");
             sendCoapGetRequest("get_lim");
 
         } else if (input.equals("2")) {
-            System.out.println("Recupero soglie attuali...");
+            System.out.println("Fetching current thresholds...");
             sendCoapGetRequest("get_lim");
 
-            // Input nuovi valori
-            System.out.print("Inserisci nuova soglia minima: ");
-            String nuovaMin = scanner.nextLine().replace(",", "."); // accetta anche la virgola per input utente
+            // Input new values
+            System.out.print("Enter new minimum threshold: ");
+            String nuovaMin = scanner.nextLine().replace(",", "."); // also accepts comma from user input
 
-            System.out.print("Inserisci nuova soglia massima: ");
+            System.out.print("Enter new maximum threshold: ");
             String nuovaMax = scanner.nextLine().replace(",", ".");
 
             try {
                 float min = Float.parseFloat(nuovaMin);
                 float max = Float.parseFloat(nuovaMax);
 
-                // Costruzione del payload nel formato richiesto: "min,max" con virgola
+                // Build payload in required format: "min,max" with comma
                 String payload = String.format(Locale.ITALY, "%.1f,%.1f", min, max);
 
-                System.out.println("Eseguo comando: set_lim con payload:");
+                System.out.println("Executing command: set_lim with payload:");
                 System.out.println(payload);
 
-                // Invio POST a set_lim
+                // Send POST to set_lim
                 sendCoapPostRequest("set_lim", payload);
 
             } catch (NumberFormatException e) {
-                System.out.println("Valori inseriti non validi.");
+                System.out.println("Invalid input values.");
             }
 
         } else {
-            System.out.println("Scelta non valida.");
+            System.out.println("Invalid choice.");
         }
     }
 
