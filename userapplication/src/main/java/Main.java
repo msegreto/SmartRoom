@@ -203,17 +203,17 @@ public class Main {
 
             // Input nuovi valori
             System.out.print("Inserisci nuova soglia minima: ");
-            String nuovaMin = scanner.nextLine().replace(",", "."); // accetta anche la virgola per input utente
+            String nuovaMin = scanner.nextLine().replace(".", ","); // accetta anche la virgola per input utente
 
             System.out.print("Inserisci nuova soglia massima: ");
-            String nuovaMax = scanner.nextLine().replace(",", ".");
+            String nuovaMax = scanner.nextLine().replace(".", ",");
 
             try {
                 float min = Float.parseFloat(nuovaMin);
                 float max = Float.parseFloat(nuovaMax);
 
                 // Costruzione del payload nel formato richiesto: "min,max" con virgola
-                String payload = String.format(Locale.US, "%.2f,%.2f", min, max);
+                String payload = String.format(Locale.ITALY, "%.2f,%.2f", min, max);
 
                 System.out.println("Eseguo comando: set_lim con payload:");
                 System.out.println(payload);
