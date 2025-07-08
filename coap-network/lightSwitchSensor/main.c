@@ -100,7 +100,6 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
     coap_set_payload(request, (uint8_t *)payload, strlen(payload));
 
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
-    free(payload);
 
     if (!registered) {
       retry++;

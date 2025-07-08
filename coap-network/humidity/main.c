@@ -118,8 +118,7 @@ PROCESS_THREAD(humidity_process, ev, data) {
     LOG_INFO("[Humidity] Sending registration request...\n");
 
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
-    free(payload);
-
+    
     if(!registered) {
       retry++;
       etimer_set(&timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);

@@ -15,7 +15,7 @@
 #define REGISTRATION_WAIT_SECONDS 7
 
 // Sample interval for sensors/actuators
-#define MAX_REGISTRATION_RETRY 5
+#define MAX_REGISTRATION_RETRY 300
 #define SENSOR_SAMPLE_INTERVAL 10
 
 

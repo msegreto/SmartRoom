@@ -167,7 +167,6 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
     LOG_INFO("[LightSystemAct] Sending registration request...\n");
 
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
-    free(payload);
 
     if (!registered) {
       retry++;
