@@ -203,10 +203,10 @@ public class Main {
 
             // Input nuovi valori
             System.out.print("Inserisci nuova soglia minima: ");
-            String nuovaMin = scanner.nextLine().replace(".", ","); // accetta anche la virgola per input utente
+            String nuovaMin = scanner.nextLine().replace(",", "."); // accetta anche la virgola per input utente
 
             System.out.print("Inserisci nuova soglia massima: ");
-            String nuovaMax = scanner.nextLine().replace(".", ",");
+            String nuovaMax = scanner.nextLine().replace(",", ".");
 
             try {
                 float min = Float.parseFloat(nuovaMin);
