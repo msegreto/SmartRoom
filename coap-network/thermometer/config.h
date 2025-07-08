@@ -15,6 +15,6 @@
 
 // Path e query separati per la discovery
 #define SERVICE_DISCOVERY_PATH "service"
-#define QUERY_HAC "resource=status"
+#define QUERY_HAC "resource=sts"
 
 #endif // CONFIG_H
