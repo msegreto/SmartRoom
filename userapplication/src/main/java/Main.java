@@ -31,7 +31,7 @@ public class Main {
             return;
         }
 
-        String uri = "coap://" + nodeIp + "/service?resource=" + resource;
+        String uri =  "coap://[" + nodeIp + "]:5683/" + resource;
         System.out.println("[DEBUG] URI costruito: " + uri);
 
         CoapClient client = new CoapClient(uri);
