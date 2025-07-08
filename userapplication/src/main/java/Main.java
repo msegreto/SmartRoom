@@ -137,7 +137,7 @@ public class UserApp {
             "7","ont",
             "8", "offt",
             "9","onhac", 
-            "10","offhac",
+            "10","offhac"
         );
         System.out.println("lightsensor stands for LightSwitchSensor,\nlightactuator for LightSwitchActuator,\nh for Humidity, \nt for Thermometer,\  \nhac for HACSystem");
         System.out.println("Seleziona un sensore da attivare/disattivare:");
