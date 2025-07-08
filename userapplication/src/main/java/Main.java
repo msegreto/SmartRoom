@@ -55,7 +55,6 @@ public class Main {
         }
     }
 
-
     public static void sendCoapPostRequest(String resource, String payload) {
         String nodeIp = ipv6Addresses.get(resource);
         if (nodeIp == null) {
@@ -63,7 +62,7 @@ public class Main {
             return;
         }
 
-        String uri = "coap://" + nodeIp + "/service?resource=" + resource;
+        String uri =  "coap://" + nodeIp + ":5683/" + resource;
         CoapClient client = new CoapClient(uri);
         CoapResponse response = client.post(payload, 0); // 0 = text/plain (media type)
 
