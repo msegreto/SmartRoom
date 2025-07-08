@@ -155,10 +155,10 @@ public class Main {
     private static void handleSensorToggle() {
         // Placeholder: lista statica per ora
         Map<String, String> sensors = Map.of(
-            "1", "onlightsensor",
+            "1", "onlightsens",
             "2", "offlightsens",
-            "3", "onlightactuator", 
-            "4","offlightact", 
+            "3", "onlightact",
+            "4","offlightact",
             "5","onh", 
             "6","offh",
             "7","ont",
@@ -166,7 +166,7 @@ public class Main {
             "9","onhac", 
             "10","offhac"
         );
-        System.out.println("lightsensor stands for LightSwitchSensor,\nlightactuator for LightSwitchActuator,\nh for Humidity, \nt for Thermometer,  \nhac for HACSystem");
+        System.out.println("lightsens stands for LightSwitchSensor,\nlightact for LightSwitchActuator,\nh for Humidity, \nt for Thermometer,  \nhac for HACSystem");
         System.out.println("Seleziona un sensore da attivare/disattivare(numero):");
         sensors.forEach((k, v) -> System.out.println(k + ". " + v));
         System.out.print("Scelta: ");

@@ -1,6 +1,5 @@
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -13,38 +12,22 @@ public class DBSupport {
 
     private static Connection connection = null;
 
-    // Inizializza la connessione al database
+    // Initializes the connection to the database
     public static void connectToDatabase() {
         try {
             connection = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
-            System.out.println("Connessione al database riuscita.");
+            System.out.println("Database connection successful.");
         } catch (SQLException e) {
-            System.err.println("Errore durante la connessione al database: " + e.getMessage());
+            System.err.println("Error during database connection: " + e.getMessage());
             System.exit(1);
         }
     }
 
-    public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
-    }
-
-    // Chiude la connessione al database (opzionale, buona pratica)
-    public static void closeDatabase() {
-        if (connection != null) {
-            try {
-                connection.close();
-                System.out.println("Connessione al database chiusa.");
-            } catch (SQLException e) {
-                System.err.println("Errore nella chiusura della connessione: " + e.getMessage());
-            }
-        }
-    }
-
-    // Restituisce la lista dei servizi unici disponibili nella rete
+    // Returns the list of unique services available on the network
     public static List<String> getAvailableServices() {
         List<String> services = new ArrayList<>();
         String query = "SELECT DISTINCT resource FROM ipv6_addresses";
-    
+
         try (Statement stmt = connection.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
 
@@ -53,13 +36,13 @@ public class DBSupport {
             }
 
         } catch (SQLException e) {
-            System.err.println("Errore nella lettura dei servizi IPv6: " + e.getMessage());
+            System.err.println("Error reading IPv6 services: " + e.getMessage());
         }
 
         return services;
     }
 
-    // Restituisce l'elenco dettagliato di tutti i nodi e servizi IPv6
+    // Returns the detailed list of all IPv6 nodes and services
     public static List<Ipv6Service> getIpv6Services() {
         List<Ipv6Service> list = new ArrayList<>();
         String query = "SELECT nodeip, nodename, resource FROM ipv6_addresses";
@@ -69,14 +52,14 @@ public class DBSupport {
 
             while (rs.next()) {
                 list.add(new Ipv6Service(
-                    rs.getString("nodeip"),
-                    rs.getString("nodename"),
-                    rs.getString("resource")
+                        rs.getString("nodeip"),
+                        rs.getString("nodename"),
+                        rs.getString("resource")
                 ));
             }
 
         } catch (SQLException e) {
-            System.err.println("Errore caricamento servizi IPv6: " + e.getMessage());
+            System.err.println("Error loading IPv6 services: " + e.getMessage());
         }
 
         return list;
