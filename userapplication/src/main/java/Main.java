@@ -213,7 +213,7 @@ public class Main {
                 float max = Float.parseFloat(nuovaMax);
 
                 // Costruzione del payload nel formato richiesto: "min,max" con virgola
-                String payload = String.format(Locale.ITALY, "%.2f,%.2f", min, max);
+                String payload = String.format(Locale.ITALY, "%.1f,%.1f", min, max);
 
                 System.out.println("Eseguo comando: set_lim con payload:");
                 System.out.println(payload);
