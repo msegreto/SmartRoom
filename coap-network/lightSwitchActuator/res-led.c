@@ -35,15 +35,15 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response,
     LOG_INFO("Payload received: '%s' (length: %d)\n", payload_str, (int)len);
     
     if(len == 1 && payload[0] == '1') {
-      leds_on(LEDS_GREEN);
-      LOG_INFO("LED turned ON (GREEN)\n");
+      leds_single_on(LEDS_YELLOW);
+      LOG_INFO("LED turned ON\n");
     } else {
-      leds_off(LEDS_GREEN);
-      LOG_INFO("LED turned OFF (GREEN)\n");
+      leds_single_off(LEDS_YELLOW);
+      LOG_INFO("LED turned OFF\n");
     }
   } else {
     LOG_WARN("No payload received, turning LED OFF\n");
-    leds_off(LEDS_GREEN);
+    leds_single_off(LEDS_YELLOW);
   }
   
   coap_set_status_code(response, CHANGED_2_04);

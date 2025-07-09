@@ -7,6 +7,7 @@
 #include "coap-blocking-api.h"
 #include "../cJSON-master/cJSON.h"
 #include "dev/button-hal.h"
+#include "leds.h"
 #include "res-light.h"
 #include "res-control.h"
 #include <stdio.h>
@@ -51,15 +52,22 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
   static coap_endpoint_t server_ep;
   static coap_message_t request[1];
   static int retry;
+  static int pressed = 0;
 
   PROCESS_BEGIN();
-
   coap_engine_init();
 
-  LOG_INFO("[Light] Waiting for network establishment...\n");
-  etimer_set(&timer, CLOCK_SECOND * 10);
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+  // Waiting for button press to start registration
+  while(1) {
+    PROCESS_YIELD();
+    if(ev == button_hal_press_event || pressed == 1) {
+      pressed = 1;
+      break;
+    }
+  }
+
   LOG_INFO("[Light] Starting registration\n");
+  leds_on(LEDS_RED);
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
 
@@ -84,8 +92,8 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
       PROCESS_EXIT();
     }
     cJSON_AddItemToArray(resources, cJSON_CreateString("light"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("onlightsensor"));
-    cJSON_AddItemToArray(resources, cJSON_CreateString("offlightsensor"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("onlightsens"));
+    cJSON_AddItemToArray(resources, cJSON_CreateString("offlightsens"));
     cJSON_AddItemToObject(root, "ss", resources);
 
     char *payload = cJSON_PrintUnformatted(root);
@@ -114,10 +122,12 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
   }
 
   coap_activate_resource(&res_light, "light");
-  coap_activate_resource(&res_on, "onlightsensor");
-  coap_activate_resource(&res_off, "offlightsensor");
+  coap_activate_resource(&res_on, "onlightsens");
+  coap_activate_resource(&res_off, "offlightsens");
 
   LOG_INFO("[Light] System ready\n");
+  leds_off(LEDS_RED);
+  leds_on(LEDS_GREEN);
 
   while (1) {
     PROCESS_YIELD();
@@ -134,6 +144,7 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
       res_light_trigger();
     }
     else if (etimer_expired(&timer) && light_state == 1) {
+      leds_single_on(LEDS_YELLOW);
       int decision = random_rand() % 2;
       LOG_INFO("[Light] Timeout expired, random decision: %d\n", decision);
 
@@ -145,6 +156,7 @@ PROCESS_THREAD(light_sensor_main_process, ev, data) {
         LOG_INFO("[Light] Keeping light active\n");
         etimer_reset(&timer);
       }
+      leds_single_off(LEDS_YELLOW);
     }
   }
 

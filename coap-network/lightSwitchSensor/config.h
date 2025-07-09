@@ -4,9 +4,6 @@
 // CoAP Cloud server endpoint
 #define CLOUD_SERVER_EP "coap://[fd00::1]:5683"
 
-// Light Actuator endpoint (esempio - dovrai modificare con l'IP corretto)
-#define ACTUATOR_EP "coap://[fe80::207:7:7:7]:5683"
-
 // CoAP registration resource path
 #define REGISTRATION_RESOURCE_PATH "registration"
 

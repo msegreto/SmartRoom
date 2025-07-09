@@ -6,6 +6,8 @@
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
 #include "coap-block1.h"
+#include "os/dev/button-hal.h"
+#include "leds.h"
 #include "../cJSON-master/cJSON.h"
 #include "coap/res_latest.h"
 #include "coap/res_prediction.h"
@@ -155,16 +157,22 @@ PROCESS_THREAD(thermometer_process, ev, data) {
   static coap_message_t request[1];
   static int retry;
   static int success;
+  static int pressed = 0;
 
   PROCESS_BEGIN();
-
   coap_engine_init();
 
-  // Wait for network to be established before attempting registration
-  LOG_INFO("[Thermometer] Waiting for network establishment...\n");
-  etimer_set(&timer, CLOCK_SECOND * 10); // Wait 10 seconds for network
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-  LOG_INFO("[Thermometer] Network wait complete, starting registration\n");
+  // Waiting for button press to start registration
+  while(1) {
+    PROCESS_YIELD();
+    if(ev == button_hal_press_event || pressed == 1) {
+      pressed = 1;
+      break;
+    }
+  }
+
+  LOG_INFO("[Thermometer] Starting registration\n");
+  leds_on(LEDS_RED);
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
   registered = 0;
@@ -187,6 +195,7 @@ PROCESS_THREAD(thermometer_process, ev, data) {
       cJSON_Delete(root);
       PROCESS_EXIT();
     }
+
     cJSON_AddItemToArray(resources, cJSON_CreateString("temp"));
     cJSON_AddItemToArray(resources, cJSON_CreateString("predt"));
     cJSON_AddItemToArray(resources, cJSON_CreateString("ont"));
@@ -206,7 +215,6 @@ PROCESS_THREAD(thermometer_process, ev, data) {
     LOG_INFO("[Thermometer] Sending registration request ...\n");
 
     COAP_BLOCKING_REQUEST(&server_ep, request, client_chunk_handler);
-    free(payload);
 
     if(!registered) {
       retry++;
@@ -221,6 +229,8 @@ PROCESS_THREAD(thermometer_process, ev, data) {
   }
 
   LOG_INFO("Registration successful!\n");
+  leds_off(LEDS_RED);
+  leds_on(LEDS_GREEN);
 
   // Attiva risorse e avvia sensing
   coap_activate_resource(&res_latest, "temp");
@@ -275,35 +285,37 @@ PROCESS_THREAD(thermometer_process, ev, data) {
     //NO PROCESS_EXIT() HERE BECAUSE IT CAN STILL WORK WITHOUT HAC
   } else {
     LOG_INFO("[LightSystemAct] Starting observation of discovered services\n");
-    obs_hac = coap_obs_request_registration(&hac_ep, "status", hac_notification_handler, NULL);
+    obs_hac = coap_obs_request_registration(&hac_ep, "sts", hac_notification_handler, NULL);
   }
   
   if (!obs_hac) {
-    LOG_ERR("Failed to set up observations. Exiting process.\n");
+    LOG_ERR("Failed to set up observations.\n");
     //NO PROCESS_EXIT() HERE BECAUSE IT CAN STILL WORK WITHOUT HAC
   }
 
   if (success && strlen(hac_ip) > 0 && obs_hac){
     LOG_INFO("Observations set up successfully.\n");
+    leds_single_on(LEDS_YELLOW);
   }
 
   etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
 
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-
+    leds_off(LEDS_GREEN);
     
     float temp = generate_random_temperature();
     LOG_INFO("Generated temperature: %.2f\n", temp);
     update_buffer(temp);
     trigger_latest_event(temp);
-
+    
     if(buffer_is_full()) {
       LOG_INFO("Buffer is full, triggering prediction event.\n");
       trigger_prediction_event();
     }
-
+    
     etimer_reset(&timer);
+    leds_on(LEDS_GREEN);
   }
 
   PROCESS_END();

@@ -4,6 +4,7 @@
 #include "coap-blocking-api.h"
 #include "config.h"
 #include "res-control.h"
+#include "os/dev/button-hal.h"
 #include "leds.h"
 #include "../cJSON-master/cJSON.h" 
 
@@ -73,11 +74,11 @@ void light_response_handler(coap_message_t *response) {
     LOG_INFO("[Light] Notification payload (RAW): %.*s\n", len, chunk);
 
     if (len == 1 && chunk[0] == '1') {
-      //leds_on(LEDS_GREEN);
       LOG_INFO("[Light] LED ON (from notification)\n");
+      leds_single_on(LEDS_YELLOW);
     } else {
-      //leds_off(LEDS_GREEN);
       LOG_INFO("[Light] LED OFF (from notification)\n");
+      leds_single_off(LEDS_YELLOW);
     }
   } else {
     LOG_WARN("[Light] Empty payload\n");
@@ -126,18 +127,22 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   static coap_message_t request[1];
   static int retry;
   static int success;
+  static int pressed = 0;
 
   PROCESS_BEGIN();
-
-  // Initialization
-  LOG_INFO("Light Actuator starting...\n");
-
   coap_engine_init();
+
+  // Waiting for button press to start registration
+  while(1) {
+    PROCESS_YIELD();
+    if(ev == button_hal_press_event || pressed == 1) {
+      pressed = 1;
+      break;
+    }
+  }
   
-  LOG_INFO("[LightSystemAct] Waiting for network establishment...\n");
-  etimer_set(&timer, CLOCK_SECOND * 10);
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-  LOG_INFO("[LightSystemAct] Network wait complete, starting registration\n");
+  LOG_INFO("[LightSystemAct] Starting registration\n");
+  leds_on(LEDS_RED);
   
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
   registered = 0;
@@ -151,8 +156,8 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
     cJSON_AddStringToObject(root, "s", "LightActuator");
     cJSON *res = cJSON_CreateArray();
     cJSON_AddItemToArray(res, cJSON_CreateString("led"));
-    cJSON_AddItemToArray(res, cJSON_CreateString("onlightactuator"));
-    cJSON_AddItemToArray(res, cJSON_CreateString("offlightactuator"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("onlightact"));
+    cJSON_AddItemToArray(res, cJSON_CreateString("offlightact"));
     cJSON_AddItemToObject(root, "ss", res);
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
@@ -185,8 +190,8 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   // Attiva la risorsa LED
   extern coap_resource_t res_led;
   coap_activate_resource(&res_led, "led");
-  coap_activate_resource(&res_on, "onlightactuator");
-  coap_activate_resource(&res_off, "offlightactuator");
+  coap_activate_resource(&res_on, "onlightact");
+  coap_activate_resource(&res_off, "offlightact");
   
   LOG_INFO("[LightSystemAct] Starting service discovery for light\n");
 
@@ -249,6 +254,9 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   LOG_INFO("Light Actuator ready\n");
   LOG_INFO("LED resource activated at /led\n");
   LOG_INFO("Waiting for CoAP requests...\n");
+
+  leds_off(LEDS_RED);
+  leds_on(LEDS_GREEN);
 
   while (1) {
     PROCESS_YIELD();
