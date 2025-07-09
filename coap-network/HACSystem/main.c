@@ -111,7 +111,7 @@ void hum_response_handler(coap_message_t *response) {
     LOG_INFO("[Hum] Notification payload: %s\n", buffer);
     float value;
     if (sscanf(buffer, "%f", &value) == 1) {
-      LOG_INFO("[Hum] Parsed value: %.2f%%\n", value * 100.0f);
+      LOG_INFO("[Hum] Parsed value: %.2f%%\n", value);
       logic_set_hum(value);
     } else {
       LOG_WARN("[Hum] Failed to parse float from: %s\n", buffer);

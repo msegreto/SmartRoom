@@ -41,7 +41,8 @@ void logic_reset_status(void) {
 }
 
 void logic_check() {
-  float perceived = last_temp - 0.55f * (1 - last_hum) * (last_temp - 14.5f);
+  float hum = last_hum / 100;
+  float perceived = last_temp - 0.55f * (1 - hum) * (last_temp - 14.5f);
   LOG_INFO("Perceived temp: %.2f\n", perceived);
 
   warming_state_t old_state = state;
