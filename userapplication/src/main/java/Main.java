@@ -234,6 +234,40 @@ public class Main {
     }
 
     private static void handleLedStatus() {
-        sendCoapGetRequest("led");
+        
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.println("What would you like to do?");
+        System.out.println("1. View led");
+        System.out.println("2. Toggle led");
+        System.out.print("Choice: ");
+        String input = scanner.nextLine();
+
+        if (input.equals("1")) {
+            // Command to read current thresholds
+            System.out.println("Executing command: lad(get)");
+            sendCoapGetRequest("led");
+
+        } else if (input.equals("2")) {
+            System.out.println("Fetching current led status...");
+            sendCoapGetRequest("led");
+
+            // Input new values
+            System.out.print("Enter new new status(0->off, 1->on): ");
+            String newStatus = scanner.nextLine();
+
+            // Validate input
+            if (!newStatus.equals("0") && !newStatus.equals("1")) {
+                System.out.println("Invalid input. Please enter 0 or 1.");
+                return;
+            }
+
+            // Send the new status via POST
+            sendCoapPostRequest("led", newStatus);
+
+        } else {
+            System.out.println("Invalid choice.");
+        }
+
     }
 }
