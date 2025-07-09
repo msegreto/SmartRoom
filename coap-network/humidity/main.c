@@ -6,6 +6,8 @@
 #include "coap-engine.h"
 #include "coap-blocking-api.h"
 #include "../cJSON-master/cJSON.h"
+#include "os/dev/button-hal.h"
+#include "leds.h"
 #include "coap/res_latest.h"
 #include "coap/res_prediction.h"
 #include "sensor/sensing.h"
@@ -67,16 +69,21 @@ PROCESS_THREAD(humidity_process, ev, data) {
   static coap_endpoint_t server_ep;
   static coap_message_t request[1];
   static int retry;
+  static int pressed = 0;
 
   PROCESS_BEGIN();
-
   coap_engine_init();
 
-  // Wait for network to be established before attempting registration
-  LOG_INFO("[Humidity] Waiting for network establishment...\n");
-  etimer_set(&timer, CLOCK_SECOND * 10); // Wait 10 seconds for network
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-  LOG_INFO("[Humidity] Network wait complete, starting registration\n");
+  // Waiting for button press to start registration
+  while(1) {
+    PROCESS_YIELD();
+    if(ev == button_hal_press_event || pressed == 1) {
+      pressed = 1;
+      break;
+    }
+  }
+  LOG_INFO("[Humidity] Starting registration\n");
+  leds_on(LEDS_RED);
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
   registered = 0;
@@ -136,10 +143,14 @@ PROCESS_THREAD(humidity_process, ev, data) {
   coap_activate_resource(&res_on, "onh");
   coap_activate_resource(&res_off, "offh");
 
-  etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
+  LOG_INFO("Registration successful!\n");
+  etimer_set(&timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
+  leds_off(LEDS_RED);
+  leds_on(LEDS_GREEN);
 
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
+    leds_off(LEDS_GREEN);
 
     float hum = generate_random_humidity(); // <-- implementa se non esiste
     LOG_INFO("Generated humidity: %.2f\n", hum);
@@ -152,6 +163,7 @@ PROCESS_THREAD(humidity_process, ev, data) {
     }   
 
     etimer_reset(&timer);
+    leds_on(LEDS_GREEN);
   }
 
   PROCESS_END();

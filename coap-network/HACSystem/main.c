@@ -4,6 +4,8 @@
 #include "coap-blocking-api.h"
 #include "../cJSON-master/cJSON.h"
 #include "button-hal.h"
+#include "os/dev/button-hal.h"
+#include "leds.h"
 #include "config.h"
 #include "logic.h"
 #include "res-control.h"
@@ -167,6 +169,7 @@ PROCESS_THREAD(actuator_process, ev, data)
   static coap_message_t request[1];
   static int retry;
   static int success;
+  static int pressed = 0;
 
   PROCESS_BEGIN();
 
@@ -175,10 +178,16 @@ PROCESS_THREAD(actuator_process, ev, data)
   coap_engine_init();
   button_hal_init();
 
-  LOG_INFO("[HACSystem] Waiting for network establishment...\n");
-  etimer_set(&timer, CLOCK_SECOND * 10);
-  PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&timer));
-  LOG_INFO("[HACSystem] Network wait complete, starting registration\n");
+  // Waiting for button press to start registration
+  while(1) {
+    PROCESS_YIELD();
+    if(ev == button_hal_press_event || pressed == 1) {
+      pressed = 1;
+      break;
+    }
+  }
+
+  LOG_INFO("[HACSystem] Starting registration\n");
 
   coap_endpoint_parse(CLOUD_SERVER_EP, strlen(CLOUD_SERVER_EP), &server_ep);
   registered = 0;
@@ -313,6 +322,7 @@ PROCESS_THREAD(actuator_process, ev, data)
   }
 
   LOG_INFO("Observations set up successfully.\n");
+  leds_single_on(LEDS_YELLOW);
 
   while (1) {
     PROCESS_WAIT_EVENT();
