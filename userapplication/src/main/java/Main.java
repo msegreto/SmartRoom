@@ -9,9 +9,9 @@ public class Main {
 
     // List of required services for the system to be considered ready
     private static final List<String> REQUIRED_SERVICES = List.of(
-            "led", "onlightact", "offlightact", "onh", "offh",
-            "ont", "offt", "set_lim", "get_lim", "sts", "onhac", "offhac",
-            "onlightsen", "offlightsens"
+        "led", "onlightact", "offlightact", "onh", "offh",
+        "ont", "offt", "set_lim", "get_lim", "sts", "onhac", "offhac",
+        "onlightsens", "offlightsens"
     );
 
     private static final int DISCOVERY_INTERVAL_MS = 3000;
