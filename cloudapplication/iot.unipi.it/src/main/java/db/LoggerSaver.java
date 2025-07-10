@@ -3,10 +3,7 @@ package db;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.Statement;
-import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.List;
 
 public class LoggerSaver {
@@ -61,19 +58,6 @@ public class LoggerSaver {
             // Log save is silent unless it fails
         } catch (SQLException e) {
             System.err.println("Error saving log: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    public void deleteLogTable() throws SQLException {
-        String deleteTableSQL = "DROP TABLE IF EXISTS " + resource + "_log";
-        
-        try (Connection conn = Database.getConnection();
-            Statement stmt = conn.createStatement()) {
-            stmt.execute(deleteTableSQL);
-            System.out.println("[LoggerSaver] Successfully deleted table: " + resource + "_log");
-        } catch (SQLException e) {
-            System.err.println("Error deleting table: " + e.getMessage());
             e.printStackTrace();
         }
     }

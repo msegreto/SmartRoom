@@ -1,5 +1,12 @@
 package coap;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -7,6 +14,11 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import db.Database;
 
 public class RegisterResource extends CoapResource {
+
+    // ThreadPool to keep track of all the observer threads
+    private static final ExecutorService observerPool = Executors.newCachedThreadPool();
+
+    private static final ConcurrentHashMap<String, List<Future<?>>> activeObserversPerDevice = new ConcurrentHashMap<>();
 
     public RegisterResource(String name) {
         super(name);
@@ -34,17 +46,51 @@ public class RegisterResource extends CoapResource {
 
             exchange.respond(ResponseCode.CREATED, "Registration successful");
             
-            for (String resource : reg.services) {
-                final Observer observerClient = new Observer(nodeIP, resource);
-                Thread observerThread = new Thread(observerClient);
-                observerThread.start();
-            }
+            // Creation of observer threads for each resource
+            stopObserversForDevice(reg.deviceId);
+            createObserversForDevice(reg.deviceId, nodeIP, reg.services);
+            
         
         } else {
             exchange.respond(ResponseCode.BAD_REQUEST, "Invalid JSON payload");
             System.err.println("[Registration] Invalid JSON from " + nodeIP);
         }
     }
+
+    private void createObserversForDevice(String deviceId, String nodeIP, String[] services) {
+        List<Future<?>> observers = new ArrayList<>();
+        for (String resource : services) {
+            final Observer observerClient = new Observer(nodeIP, resource);
+            Future<?> future = observerPool.submit(observerClient);
+            observers.add(future);
+            System.out.println("[Registration] Started observer for " + deviceId + " resource: " + resource);
+        }
+        activeObserversPerDevice.put(deviceId, observers);
+    }
+
+    private void stopObserversForDevice(String deviceId) {
+        List<Future<?>> observers = activeObserversPerDevice.get(deviceId);
+        if (observers != null) {
+            for (Future<?> observer : observers) {
+                observer.cancel(true);
+            }
+            activeObserversPerDevice.remove(deviceId);
+            System.out.println("[Registration] Stopped observers for device: " + deviceId);
+        }
+    }
+
+    // On server shutdown, stop all observers
+    public static void shutdownObservers() {
+        for (List<Future<?>> observers : activeObserversPerDevice.values()) {
+            for (Future<?> observer : observers) {
+                observer.cancel(true);
+            }
+        }
+        activeObserversPerDevice.clear();
+        observerPool.shutdown();
+        System.out.println("[Registration] All observers stopped and pool shutdown");
+    }
+
 
     private DeviceRegistration parseRegistrationJSON(String json) {
         try {
