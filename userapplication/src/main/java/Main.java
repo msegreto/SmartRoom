@@ -9,9 +9,9 @@ public class Main {
 
     // List of required services for the system to be considered ready
     private static final List<String> REQUIRED_SERVICES = List.of(
-        "led", "onlightact", "offlightact", "onh", "offh",
-        "ont", "offt", "set_lim", "get_lim", "sts", "onhac", "offhac",
-        "onlightsens", "offlightsens"
+            "led", "onlightact", "offlightact", "onh", "offh",
+            "ont", "offt", "set_lim", "get_lim", "sts", "onhac", "offhac",
+            "onlightsens", "offlightsens"
     );
 
     private static final int DISCOVERY_INTERVAL_MS = 3000;
@@ -25,11 +25,11 @@ public class Main {
         }
     }
 
-    public static void sendCoapGetRequest(String resource) {
+    public static String sendCoapGetRequest(String resource) {
         String nodeIp = ipv6Addresses.get(resource);
         if (nodeIp == null) {
             System.out.println("[DEBUG] IP not found for service: " + resource);
-            return;
+            return "null payload";
         }
 
         String uri =  "coap://" + nodeIp + ":5683/" + resource;
@@ -48,11 +48,14 @@ public class Main {
 
             if (!payload.isEmpty()) {
                 System.out.println("Response from " + resource + ": " + payload);
+                return response.getResponseText();
             } else {
                 System.out.println("Empty response from " + resource + ", but code: " + codeName);
+                return "null payload";
             }
         } else {
             System.out.println("Error: null CoAP response from " + resource);
+            return "null payload";
         }
     }
 
@@ -153,19 +156,19 @@ public class Main {
     }
 
     private static void handleSensorToggle() {
-        // Placeholder: static list for now
         Map<String, String> sensors = Map.of(
                 "1", "onlightsens",
                 "2", "offlightsens",
                 "3", "onlightact",
-                "4","offlightact",
-                "5","onh",
-                "6","offh",
-                "7","ont",
+                "4", "offlightact",
+                "5", "onh",
+                "6", "offh",
+                "7", "ont",
                 "8", "offt",
-                "9","onhac",
-                "10","offhac"
+                "9", "onhac",
+                "10", "offhac"
         );
+
         System.out.println("lightsens stands for LightSwitchSensor,\nlightact for LightSwitchActuator,\nh for Humidity, \nt for Thermometer,  \nhac for HACSystem");
         System.out.println("Select a sensor to activate/deactivate (number):");
         sensors.forEach((k, v) -> System.out.println(k + ". " + v));
@@ -174,9 +177,81 @@ public class Main {
         String choice = scanner.nextLine();
 
         String sensor = sensors.get(choice);
+        String status;
         if (sensor != null) {
-            System.out.println("Toggling sensor state: " + sensor);
-            sendCoapPostRequest(sensor,  "1");
+            switch (sensor) {
+
+                case "ont":
+                    System.out.println("Activating Thermometer with custom behavior...");
+                    sendCoapPostRequest(sensor, "1");
+                    status = sendCoapGetRequest("onhac");
+                    if (status != null && status.contains("ON")) {
+                        System.out.println("Resetting HacSystem...");
+                        sendCoapPostRequest("offhac", "1");
+                        System.out.println("Restarting HacSystem...");
+                        sendCoapPostRequest("onhac", "1");
+                    } else {
+                        System.out.println("Attuatore non attivo, nessuna azione eseguita.");
+                    }
+                    break;
+
+                case "onh":
+                    System.out.println("Activating Humidity with custom behavior...");
+                    sendCoapPostRequest(sensor, "1");
+                    status = sendCoapGetRequest("onhac");
+                    if (status != null && status.contains("ON")) {
+                        System.out.println("Resetting HacSystem...");
+                        sendCoapPostRequest("offhac", "1");
+                        System.out.println("Restarting HacSystem...");
+                        sendCoapPostRequest("onhac", "1");
+                    } else {
+                        System.out.println("Attuatore non attivo, nessuna azione eseguita.");
+                    }
+                    status = sendCoapGetRequest("ont");
+                    if (status != null && status.contains("ON")) {
+                        System.out.println("Resetting Thermometer...");
+                        sendCoapPostRequest("offt", "1");
+                        System.out.println("Restarting Thermometer...");
+                        sendCoapPostRequest("ont", "1");
+                    } else {
+                        System.out.println("Attuatore non attivo, nessuna azione eseguita.");
+                    }
+                    break;
+
+                case "onhac":
+                    System.out.println("Activating HAC system with custom behavior...");
+                    sendCoapPostRequest(sensor, "1");
+                    status = sendCoapGetRequest("ont");
+                    if (status != null && status.contains("ON")) {
+                        System.out.println("Resetting Thermometer...");
+                        sendCoapPostRequest("offt", "1");
+                        System.out.println("Restarting Thermometer...");
+                        sendCoapPostRequest("ont", "1");
+                    } else {
+                        System.out.println("Attuatore non attivo, nessuna azione eseguita.");
+                    }
+                    break;
+
+                case "onlightsens":
+                    System.out.println("Activating LightSwitchSensor with custom behavior...");
+                    sendCoapPostRequest(sensor, "1");
+                    status = sendCoapGetRequest("onlightsens");
+                    if (status != null && status.contains("ON")) {
+                        System.out.println("Resetting LightSwitchActuator...");
+                        sendCoapPostRequest("offlightsens", "1");
+                        System.out.println("Restarting LightSwitchActuator...");
+                        sendCoapPostRequest("onlightsens", "1");
+                    } else {
+                        System.out.println("Attuatore non attivo, nessuna azione eseguita.");
+                    }
+
+                    break;
+
+                default:
+                    System.out.println("Toggling sensor state: " + sensor);
+                    sendCoapPostRequest(sensor, "1");
+                    break;
+            }
         } else {
             System.out.println("Invalid sensor.");
         }
@@ -234,7 +309,7 @@ public class Main {
     }
 
     private static void handleLedStatus() {
-        
+
         Scanner scanner = new Scanner(System.in);
 
         System.out.println("What would you like to do?");
