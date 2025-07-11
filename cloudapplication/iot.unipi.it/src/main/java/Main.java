@@ -9,6 +9,7 @@ public class Main {
         System.out.println("[Main] Starting SmartRoom CoAP Server...");
         try {
             Database.deleteDatabase();
+
             Database.createDatabase();
             Database.createTableIPV6();
         } catch (Exception e) {
@@ -21,6 +22,11 @@ public class Main {
         server.add(new RegisterResource("registration"));
         
         server.start();
+
+        // Shutdown hook to clean up observers on server stop
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            RegisterResource.shutdownObservers();
+        }));
         
         System.out.println("[Main] Server ready on port 5683");
     }

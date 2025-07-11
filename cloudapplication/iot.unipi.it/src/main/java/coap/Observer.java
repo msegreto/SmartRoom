@@ -10,6 +10,7 @@ import db.LoggerSaver;
 public class Observer implements Runnable{
     private final LoggerSaver logger;
     private final String resourceURI;
+    private volatile boolean running = true;
 
     private CoapClient client;
     private CoapObserveRelation relation;
@@ -24,6 +25,9 @@ public class Observer implements Runnable{
         relation = client.observe(new CoapHandler() {
             @Override
             public void onLoad(CoapResponse response) {
+
+                if (!running) return;
+
                 String responseText = response.getResponseText();
                 if (responseText == null || responseText.trim().isEmpty()) {
                     return;
@@ -41,6 +45,8 @@ public class Observer implements Runnable{
             @Override
             public void onError() {
                 System.err.println("[Observer] Connection lost: " + resourceURI);
+
+                running = false;
             }
         });
         
@@ -48,10 +54,12 @@ public class Observer implements Runnable{
             System.out.println("[Observer] Observing: " + resourceURI);
         } else {
             System.err.println("[Observer] Failed to observe: " + resourceURI);
+            running = false;
         }
     }
 
     public void stopObserving() {
+        running = false;
         if (relation != null) {
             relation.proactiveCancel();
         }
@@ -62,6 +70,25 @@ public class Observer implements Runnable{
     
     @Override
     public void run() {
-        startObserving();
+        try {
+            startObserving();
+
+            // Keep thread alive while observing
+            while (running && !Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    System.out.println("[Observer] Thread interrupted: " + resourceURI);
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("[Observer] Error in observer " + resourceURI + ": " + e.getMessage());
+        } finally {
+            stopObserving();
+            System.out.println("[Observer] Observer thread terminated: " + resourceURI);
+        }
     }
 }
