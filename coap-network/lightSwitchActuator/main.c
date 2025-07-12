@@ -21,14 +21,6 @@ coap_observee_t *obs_light = NULL;
 
 static char light_service_payload[128] = "";
 
-static void print_hex(const uint8_t *data, int len) {
-  printf("[HEX] ");
-  for (int i = 0; i < len; ++i) {
-    printf("%02X ", data[i]);
-  }
-  printf("\n");
-}
-
 void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
   if (!response || !buffer) {
     LOG_WARN("[DISCOVERY] No response or buffer null\n");
