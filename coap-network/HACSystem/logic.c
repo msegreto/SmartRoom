@@ -8,8 +8,8 @@
 #define LOG_MODULE "Logic"
 #define LOG_LEVEL LOG_LEVEL_APP
 
-static float last_temp = 0;
-static float last_hum = 0;
+static float last_temp = DEFAULT_TEMPERATURE;
+static float last_hum = DEFAULT_HUMIDITY;
 static float threshold_min = DEFAULT_THRESHOLD_MIN;
 static float threshold_max = DEFAULT_THRESHOLD_MAX;
 static warming_state_t state = WARMING_NONE;

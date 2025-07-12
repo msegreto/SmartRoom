@@ -144,7 +144,7 @@ PROCESS_THREAD(humidity_process, ev, data) {
   coap_activate_resource(&res_off, "offh");
 
   LOG_INFO("Registration successful!\n");
-  etimer_set(&timer, CLOCK_SECOND * REGISTRATION_WAIT_SECONDS);
+  etimer_set(&timer, CLOCK_SECOND * SENSING_PERIOD_SECONDS);
   leds_off(LEDS_RED);
   leds_on(LEDS_GREEN);
 

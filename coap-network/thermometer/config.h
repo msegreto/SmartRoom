@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SENSING_PERIOD_SECONDS 60*30 // 30 minutes
+#define SENSING_PERIOD_SECONDS 5 // 30 minutes but is 30s for testing
 #define MEAN_TEMPERATURE 26.34
 #define STD_TEMPERATURE 1.85
 #define MAX_STEP 0.50

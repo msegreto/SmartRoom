@@ -50,6 +50,13 @@ public class LoggerSaver {
             PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
             if(isResourceFloatType()){
                 value = value.replace(",", ".");
+                Float floatValue = Float.parseFloat(value);
+
+                // If the sensors are still initializing, log is not saved
+                if(floatValue == 0.0f) {
+                    return;
+                }
+
                 pstmt.setFloat(1, Float.parseFloat(value));
             }
             else

@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SENSING_PERIOD_SECONDS 60*30 // 30 minutes
+#define SENSING_PERIOD_SECONDS 5 // 30 minutes but is 30s for testing
 #define MEAN_HUMIDITY 41.1
 #define STD_HUMIDITY 5.83
 #define MAX_STEP 2.00

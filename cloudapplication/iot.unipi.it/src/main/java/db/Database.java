@@ -60,28 +60,50 @@ public class Database {
     }
 
     public static Boolean saveDeviceRegistration(String nodeIP, String nodeName, String[] resources) throws SQLException {
-        String insertSQL = "INSERT INTO ipv6_addresses (nodeip, nodename, resource) VALUES (?, ?, ?)";
+    String deleteSQL = "DELETE FROM ipv6_addresses WHERE nodename = ?";
+    String insertSQL = "INSERT INTO ipv6_addresses (nodeip, nodename, resource) VALUES (?, ?, ?)";
+    
+    try (Connection conn = getConnection()) {
+        // Disabilita auto-commit per transazione atomica
+        conn.setAutoCommit(false);
         
-        try (Connection conn = getConnection();
-            PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
-            
-            for (String resource : resources) {
-                pstmt.setString(1, nodeIP);
-                pstmt.setString(2, nodeName);
-                pstmt.setString(3, resource);
-                pstmt.addBatch();
+        try {
+            try (PreparedStatement deletePstmt = conn.prepareStatement(deleteSQL)) {
+                deletePstmt.setString(1, nodeName);
+                int deletedRows = deletePstmt.executeUpdate();
+                if (deletedRows > 0) {
+                    System.out.println("[Database] Removed " + deletedRows + " existing entries for device: " + nodeName);
+                }
             }
             
-            pstmt.executeBatch();
-            // Registration saved silently unless it fails
+            try (PreparedStatement insertPstmt = conn.prepareStatement(insertSQL)) {
+                for (String resource : resources) {
+                    insertPstmt.setString(1, nodeIP);
+                    insertPstmt.setString(2, nodeName);
+                    insertPstmt.setString(3, resource);
+                    insertPstmt.addBatch();
+                }
+                
+                insertPstmt.executeBatch();
+            }
+            
+            conn.commit();
+            System.out.println("[Database] Successfully updated registration for device: " + nodeName);
             return true;
-
+            
         } catch (SQLException e) {
-            System.err.println("[Database] Error saving node registration: " + e.getMessage());
-            e.printStackTrace();
-            return false;
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(true);
         }
+        
+    } catch (SQLException e) {
+        System.err.println("[Database] Error updating device registration: " + e.getMessage());
+        e.printStackTrace();
+        return false;
     }
+}
     
     public static String getResourceIP(String resourceName) throws SQLException {
         String selectSQL = "SELECT nodeip FROM ipv6_addresses WHERE resource = ? LIMIT 1";
