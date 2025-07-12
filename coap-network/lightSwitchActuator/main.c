@@ -43,19 +43,46 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
     return;
   }
 
-  memcpy(buffer, chunk, len);
-  buffer[len] = '\0';
-  
-  
-  if (strstr(buffer, "not found") != NULL) {
-    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", buffer);
-    buffer[0] = '\0';  
+  // Copia il payload in una stringa terminata da \0
+  char json_payload[len + 1];
+  memcpy(json_payload, chunk, len);
+  json_payload[len] = '\0';
+
+  // Parsing JSON
+  cJSON *root = cJSON_Parse(json_payload);
+  if (!root) {
+    LOG_WARN("[DISCOVERY] Failed to parse JSON payload\n");
+    buffer[0] = '\0';
     return;
   }
 
-  // Stampa solo se la risposta è valida
-  print_hex(chunk, len);
-  LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
+  // Estrai il campo "value"
+  cJSON *value_item = cJSON_GetObjectItem(root, "value");
+  if (!value_item || !cJSON_IsString(value_item)) {
+    LOG_WARN("[DISCOVERY] JSON 'value' missing or not a string\n");
+    cJSON_Delete(root);
+    buffer[0] = '\0';
+    return;
+  }
+
+  const char *val = value_item->valuestring;
+
+  // Controlla contenuto
+  if (strstr(val, "not found") != NULL) {
+    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", val);
+    buffer[0] = '\0';
+    cJSON_Delete(root);
+    return;
+  }
+
+  // Copia il valore in buffer
+  strncpy(buffer, val, buffer_len - 1);
+  buffer[buffer_len - 1] = '\0';
+
+  // Log utile
+  LOG_INFO("[DISCOVERY] Parsed endpoint value: %s\n", buffer);
+
+  cJSON_Delete(root);
 }
 
 void discovery_response_handler_light(coap_message_t *response) {
@@ -70,20 +97,48 @@ void light_response_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-  if (len > 0) {
-    LOG_INFO("[Light] Notification payload (RAW): %.*s\n", len, chunk);
-
-    if (len == 1 && chunk[0] == '1') {
-      LOG_INFO("[Light] LED ON (from notification)\n");
-      leds_single_on(LEDS_YELLOW);
-    } else {
-      LOG_INFO("[Light] LED OFF (from notification)\n");
-      leds_single_off(LEDS_YELLOW);
-    }
-  } else {
+  if (len <= 0 || !chunk) {
     LOG_WARN("[Light] Empty payload\n");
+    return;
   }
+
+  // Copia il payload in una stringa terminata da \0
+  char json_payload[len + 1];
+  memcpy(json_payload, chunk, len);
+  json_payload[len] = '\0';
+
+  // Parsing JSON
+  cJSON *root = cJSON_Parse(json_payload);
+  if (!root) {
+    LOG_WARN("[Light] Failed to parse JSON payload\n");
+    return;
+  }
+
+  // Estrai il campo "value"
+  cJSON *value_item = cJSON_GetObjectItem(root, "value");
+  if (!value_item || !cJSON_IsString(value_item)) {
+    LOG_WARN("[Light] JSON 'value' missing or not a string\n");
+    cJSON_Delete(root);
+    return;
+  }
+
+  const char *val = value_item->valuestring;
+
+  // Log del valore parsato
+  LOG_INFO("[Light] Parsed value from JSON: %s\n", val);
+
+  // Attiva/disattiva il LED
+  if (strcmp(val, "1") == 0) {
+    LOG_INFO("[Light] LED ON (from JSON)\n");
+    leds_single_on(LEDS_YELLOW);
+  } else {
+    LOG_INFO("[Light] LED OFF (from JSON)\n");
+    leds_single_off(LEDS_YELLOW);
+  }
+
+  cJSON_Delete(root);
 }
+
 
 void light_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
   LOG_INFO("[Light] Notification received\n");
@@ -103,10 +158,23 @@ static void client_chunk_handler(coap_message_t *response) {
 
   int len = coap_get_payload(response, &chunk);
   if (len > 0 && chunk != NULL) {
-    char payload[len + 1];
-    memcpy(payload, chunk, len);
-    payload[len] = '\0';
-    LOG_INFO("[LightSystemAct] Response payload: '%s'\n", payload);
+    char json_payload[len + 1];
+    memcpy(json_payload, chunk, len);
+    json_payload[len] = '\0';
+
+    cJSON *root = cJSON_Parse(json_payload);
+    if (!root) {
+      LOG_WARN("[LightSystemAct] Failed to parse JSON payload: %s\n", json_payload);
+    } else {
+      cJSON *value_item = cJSON_GetObjectItem(root, "value");
+      if (value_item && cJSON_IsString(value_item)) {
+        const char *val = value_item->valuestring;
+        LOG_INFO("[LightSystemAct] Parsed 'value' from response: '%s'\n", val);
+      } else {
+        LOG_WARN("[LightSystemAct] JSON does not contain a valid 'value' string\n");
+      }
+      cJSON_Delete(root);
+    }
   } else {
     LOG_WARN("[LightSystemAct] Empty or invalid payload received (len=%d)\n", len);
   }
@@ -120,6 +188,7 @@ static void client_chunk_handler(coap_message_t *response) {
 
   LOG_INFO("[LightSystemAct] === RESPONSE HANDLER END ===\n");
 }
+
 
 PROCESS_THREAD(light_actuator_process, ev, data) {
   static struct etimer timer, init_timer;
