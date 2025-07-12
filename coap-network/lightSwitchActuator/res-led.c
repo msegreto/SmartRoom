@@ -2,6 +2,7 @@
 #include "leds.h"
 #include "sys/log.h"
 #include <string.h>
+#include "../cJSON-master/cJSON.h"
 
 #define LOG_MODULE "LED_Resource"
 #define LOG_LEVEL LOG_LEVEL_INFO
