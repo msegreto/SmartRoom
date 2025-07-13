@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "../cJSON-master/cJSON.h"
 
 #define LOG_MODULE "ResControl"
 #define LOG_LEVEL LOG_LEVEL_APP
@@ -25,19 +26,67 @@ static void post_handler(coap_message_t *request, coap_message_t *response, uint
   const uint8_t *payload = NULL;
   int len = coap_get_payload(request, &payload);
   if (payload && len > 0) {
-    float th_min = 0, th_max = 0;
-    sscanf((const char *)payload, "%f,%f", &th_min, &th_max);
-    logic_set_thresholds(th_min, th_max);
+    char json_payload[len + 1];
+    memcpy(json_payload, payload, len);
+    json_payload[len] = '\0';
+
+    cJSON *root = cJSON_Parse(json_payload);
+    if (!root) {
+      LOG_WARN("[Thresholds] Invalid JSON format: %s\n", json_payload);
+    } else {
+      cJSON *value_item = cJSON_GetObjectItem(root, "value");
+      if (value_item && cJSON_IsString(value_item)) {
+        float th_min = 0, th_max = 0;
+        if (sscanf(value_item->valuestring, "%f,%f", &th_min, &th_max) == 2) {
+          logic_set_thresholds(th_min, th_max);
+          LOG_INFO("[Thresholds] Set to: %.2f - %.2f\n", th_min, th_max);
+        } else {
+          LOG_WARN("[Thresholds] Invalid value format: %s\n", value_item->valuestring);
+        }
+      } else {
+        LOG_WARN("[Thresholds] Missing 'value' string in JSON\n");
+      }
+      cJSON_Delete(root);
+    }
+  } else {
+    LOG_WARN("[Thresholds] Empty payload in POST\n");
   }
-  const char *msg = "Thresholds updated";
-  coap_set_payload(response, (uint8_t *)msg, strlen(msg));
+
+  // Risposta: JSON { "value": "Thresholds updated" }
+  cJSON *resp = cJSON_CreateObject();
+  cJSON_AddStringToObject(resp, "value", "Thresholds updated");
+  char *json_str = cJSON_PrintUnformatted(resp);
+  cJSON_Delete(resp);
+
+  if (json_str != NULL) {
+    size_t json_len = strlen(json_str);
+    memcpy(buffer, json_str, json_len);
+    coap_set_payload(response, buffer, json_len);
+    coap_set_status_code(response, CONTENT_2_05);
+    coap_set_header_content_format(response, APPLICATION_JSON);
+  }
 }
+
 
 static void get_threshold_handler(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
   float th_min, th_max;
   logic_get_thresholds(&th_min, &th_max);
-  int len = snprintf((char *)buffer, preferred_size, "%.2f,%.2f", th_min, th_max);
-  coap_set_payload(response, buffer, len);
+
+  char formatted[32];
+  snprintf(formatted, sizeof(formatted), "%.2f,%.2f", th_min, th_max);
+
+  cJSON *root = cJSON_CreateObject();
+  cJSON_AddStringToObject(root, "value", formatted);
+  char *json_str = cJSON_PrintUnformatted(root);
+  cJSON_Delete(root);
+
+  if (json_str != NULL) {
+    size_t json_len = strlen(json_str);
+    memcpy(buffer, json_str, json_len);
+    coap_set_payload(response, buffer, json_len);
+    coap_set_status_code(response, CONTENT_2_05);
+    coap_set_header_content_format(response, APPLICATION_JSON);
+  }
 }
 
 RESOURCE(res_set_threshold,
@@ -74,13 +123,20 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response, u
     default: status_str = "none"; break;
   }
 
-  int len = snprintf((char *)buffer, preferred_size, "%s", status_str);
-  if (len > 0) {
-    LOG_INFO("[Status] Payload: %s\n", status_str);
-    coap_set_header_content_format(response, TEXT_PLAIN);
-    coap_set_payload(response, buffer, len);
+  cJSON *root = cJSON_CreateObject();
+  cJSON_AddStringToObject(root, "value", status_str);
+  char *json_str = cJSON_PrintUnformatted(root);
+  cJSON_Delete(root);
+
+  if (json_str != NULL) {
+    size_t json_len = strlen(json_str);
+    memcpy(buffer, json_str, json_len);
+    coap_set_payload(response, buffer, json_len);
+    coap_set_status_code(response, CONTENT_2_05);
+    coap_set_header_content_format(response, APPLICATION_JSON);
+    LOG_INFO("[Status] JSON Payload: %s\n", json_str);
   } else {
-    LOG_WARN("[Status] Failed to format payload\n");
+    LOG_WARN("[Status] Failed to format JSON response\n");
   }
 
   LOG_INFO("[Status] GET handled\n");
@@ -89,30 +145,55 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response, u
 // === ON / OFF COAP HANDLERS ===
 
 static void res_post_on(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-  sensor_on();
-  const char *msg = "Actuator ON";
-  coap_set_payload(response, (uint8_t *)msg, strlen(msg));
+    sensor_on();
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "value", "HAC system ON");
+    char *json_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (json_str != NULL) {
+        size_t len = strlen(json_str);
+        memcpy(buffer, json_str, len);
+        coap_set_payload(response, buffer, len);
+        coap_set_status_code(response, CONTENT_2_05);
+        coap_set_header_content_format(response, APPLICATION_JSON);
+    }
 }
 
 static void res_post_off(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-  sensor_off();
-  const char *msg = "Actuator OFF";
-  coap_set_payload(response, (uint8_t *)msg, strlen(msg));
+    sensor_off();
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "value", "HAC system OFF");
+    char *json_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (json_str != NULL) {
+        size_t len = strlen(json_str);
+        memcpy(buffer, json_str, len);
+        coap_set_payload(response, buffer, len);
+        coap_set_status_code(response, CONTENT_2_05);
+        coap_set_header_content_format(response, APPLICATION_JSON);
+    }
 }
 
 static void res_get(coap_message_t *request, coap_message_t *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-  if(is_on) {
-    LOG_INFO("[ActuatorCtrl] Actuator is  ON\n");
-    const char *msg = "Actuator is  ON";
-    coap_set_payload(response, (uint8_t *)msg, strlen(msg));
-    return;
-  }
-  else {
-    LOG_INFO("[ActuatorCtrl] Actuator is  OFF\n");
-    const char *msg = "Actuator is  OFF";
-    coap_set_payload(response, (uint8_t *)msg, strlen(msg));
-    return;
-  }
+    const char *status_str = is_on ? "Actuator is ON" : "Actuator is OFF";
+    LOG_INFO("[ActuatorCtrl] %s\n", status_str);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "value", status_str);
+    char *json_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (json_str != NULL) {
+        size_t len = strlen(json_str);
+        memcpy(buffer, json_str, len);
+        coap_set_payload(response, buffer, len);
+        coap_set_status_code(response, CONTENT_2_05);
+        coap_set_header_content_format(response, APPLICATION_JSON);
+    }
 }
 
 RESOURCE(res_on, "title=\"Actuator ON\"", res_get, res_post_on, NULL, NULL);

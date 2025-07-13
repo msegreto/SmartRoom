@@ -158,7 +158,7 @@ void hac_response_handler(coap_message_t *response) {
       LOG_INFO("[HAC] Set trend to NONE\n");
     } else {
       LOG_WARN("[HAC] Unknown trend value: %s\n", val);
-    }
+  }
 
   cJSON_Delete(root);
 }
@@ -189,14 +189,14 @@ static void client_chunk_handler(coap_message_t *response) {
 
     cJSON *root = cJSON_Parse(json_payload);
     if (!root) {
-      LOG_WARN("[Humidity] Failed to parse JSON: %s\n", json_payload);
+      LOG_WARN("[Thermometer] Failed to parse JSON: %s\n", json_payload);
     } else {
       cJSON *value_item = cJSON_GetObjectItem(root, "value");
       if (value_item && cJSON_IsString(value_item)) {
         const char *val = value_item->valuestring;
-        LOG_INFO("[Humidity] Response value: %s\n", val);
+        LOG_INFO("[Thermometer] Response value: %s\n", val);
       } else {
-        LOG_WARN("[Humidity] JSON missing valid 'value' string\n");
+        LOG_WARN("[Thermometer] JSON missing valid 'value' string\n");
       }
       cJSON_Delete(root);
     }

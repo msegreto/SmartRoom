@@ -26,14 +26,6 @@ coap_observee_t *obs_hum = NULL;
 static char temp_service_payload[128] = "";
 static char hum_service_payload[128] = "";
 
-static void print_hex(const uint8_t *data, int len) {
-  printf("[HEX] ");
-  for (int i = 0; i < len; ++i) {
-    printf("%02X ", data[i]);
-  }
-  printf("\n");
-}
-
 void discovery_response_handler(coap_message_t *response, char *buffer, size_t buffer_len) {
   if (!response || !buffer) {
     LOG_WARN("[DISCOVERY] No response or buffer null\n");
@@ -48,19 +40,46 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
     return;
   }
 
-  memcpy(buffer, chunk, len);
-  buffer[len] = '\0';
-  
-  
-  if (strstr(buffer, "not found") != NULL) {
-    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", buffer);
-    buffer[0] = '\0';  
+  // Copia il payload in una stringa terminata da \0
+  char json_payload[len + 1];
+  memcpy(json_payload, chunk, len);
+  json_payload[len] = '\0';
+
+  // Parsing JSON
+  cJSON *root = cJSON_Parse(json_payload);
+  if (!root) {
+    LOG_WARN("[DISCOVERY] Failed to parse JSON payload\n");
+    buffer[0] = '\0';
     return;
   }
 
-  // Stampa solo se la risposta è valida
-  print_hex(chunk, len);
-  LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
+  // Estrai il campo "value"
+  cJSON *value_item = cJSON_GetObjectItem(root, "value");
+  if (!value_item || !cJSON_IsString(value_item)) {
+    LOG_WARN("[DISCOVERY] JSON 'value' missing or not a string\n");
+    cJSON_Delete(root);
+    buffer[0] = '\0';
+    return;
+  }
+
+  const char *val = value_item->valuestring;
+
+  // Controlla contenuto
+  if (strstr(val, "not found") != NULL) {
+    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", val);
+    buffer[0] = '\0';
+    cJSON_Delete(root);
+    return;
+  }
+
+  // Copia il valore in buffer
+  strncpy(buffer, val, buffer_len - 1);
+  buffer[buffer_len - 1] = '\0';
+
+  // Log utile
+  LOG_INFO("[DISCOVERY] Parsed endpoint value: %s\n", buffer);
+
+  cJSON_Delete(root);
 }
 
 void discovery_response_handler_temp(coap_message_t *response) {
@@ -79,21 +98,38 @@ void temp_response_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-  if (len > 0) {
-    char buffer[64];
-    memcpy(buffer, chunk, len);
-    buffer[len] = '\0';
-    LOG_INFO("[Temp] Notification payload: %s\n", buffer);
-    float value;
-    if (sscanf(buffer, "%f", &value) == 1) {
-      LOG_INFO("[Temp] Parsed value: %.2f°C\n", value);
-      logic_set_temp(value);
-    } else {
-      LOG_WARN("[Temp] Failed to parse float from: %s\n", buffer);
-    }
-  } else {
+  if (len <= 0 || !chunk) {
     LOG_WARN("[Temp] Empty payload\n");
+    return;
   }
+
+  char json_payload[len + 1];
+  memcpy(json_payload, chunk, len);
+  json_payload[len] = '\0';
+
+  cJSON *root = cJSON_Parse(json_payload);
+  if (!root) {
+    LOG_WARN("[Temp] Failed to parse JSON payload\n");
+    return;
+  }
+
+  cJSON *value_item = cJSON_GetObjectItem(root, "value");
+  if (!value_item || !cJSON_IsString(value_item)) {
+    LOG_WARN("[Temp] JSON 'value' missing or not a string\n");
+    cJSON_Delete(root);
+    return;
+  }
+
+  const char *val_str = value_item->valuestring;
+  float value;
+  if (sscanf(val_str, "%f", &value) == 1) {
+    LOG_INFO("[Temp] Parsed value from JSON: %.2f°C\n", value);
+    logic_set_temp(value);
+  } else {
+    LOG_WARN("[Temp] Failed to convert value: %s\n", val_str);
+  }
+
+  cJSON_Delete(root);
 }
 
 void hum_response_handler(coap_message_t *response) {
@@ -104,21 +140,38 @@ void hum_response_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-  if (len > 0) {
-    char buffer[64];
-    memcpy(buffer, chunk, len);
-    buffer[len] = '\0';
-    LOG_INFO("[Hum] Notification payload: %s\n", buffer);
-    float value;
-    if (sscanf(buffer, "%f", &value) == 1) {
-      LOG_INFO("[Hum] Parsed value: %.2f%%\n", value);
-      logic_set_hum(value);
-    } else {
-      LOG_WARN("[Hum] Failed to parse float from: %s\n", buffer);
-    }
-  } else {
+  if (len <= 0 || !chunk) {
     LOG_WARN("[Hum] Empty payload\n");
+    return;
   }
+
+  char json_payload[len + 1];
+  memcpy(json_payload, chunk, len);
+  json_payload[len] = '\0';
+
+  cJSON *root = cJSON_Parse(json_payload);
+  if (!root) {
+    LOG_WARN("[Hum] Failed to parse JSON payload\n");
+    return;
+  }
+
+  cJSON *value_item = cJSON_GetObjectItem(root, "value");
+  if (!value_item || !cJSON_IsString(value_item)) {
+    LOG_WARN("[Hum] JSON 'value' missing or not a string\n");
+    cJSON_Delete(root);
+    return;
+  }
+
+  const char *val_str = value_item->valuestring;
+  float value;
+  if (sscanf(val_str, "%f", &value) == 1) {
+    LOG_INFO("[Hum] Parsed value from JSON: %.2f%%\n", value);
+    logic_set_hum(value);
+  } else {
+    LOG_WARN("[Hum] Failed to convert value: %s\n", val_str);
+  }
+
+  cJSON_Delete(root);
 }
 
 void temp_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
@@ -133,23 +186,36 @@ void hum_notification_handler(struct coap_observee_s *obs, void *notification, c
 
 static void client_chunk_handler(coap_message_t *response) {
   LOG_INFO("[HACSystem] === RESPONSE HANDLER CALLED ===\n");
-
+  
   const uint8_t *chunk;
   if (response == NULL) {
     LOG_ERR("[HACSystem] Registration timed out - no response received\n");
     return;
   }
-
+  
   LOG_INFO("[HACSystem] Response received! Code: %d\n", response->code);
-
+  
   int len = coap_get_payload(response, &chunk);
-  if (len > 0 && chunk != NULL) {
-    char payload[len + 1];
-    memcpy(payload, chunk, len);
-    payload[len] = '\0';
-    LOG_INFO("[HACSystem] Response payload: '%s'\n", payload);
-  } else {
+  if (len <= 0 || chunk == NULL) {
     LOG_WARN("[HACSystem] Empty or invalid payload received (len=%d)\n", len);
+  } else {
+    char json_payload[len + 1];
+    memcpy(json_payload, chunk, len);
+    json_payload[len] = '\0';
+
+    cJSON *root = cJSON_Parse(json_payload);
+    if (!root) {
+      LOG_WARN("[HACSystem] Failed to parse JSON: %s\n", json_payload);
+    } else {
+      cJSON *value_item = cJSON_GetObjectItem(root, "value");
+      if (value_item && cJSON_IsString(value_item)) {
+        const char *val = value_item->valuestring;
+        LOG_INFO("[HACSystem] Response value: %s\n", val);
+      } else {
+        LOG_WARN("[HACSystem] JSON missing valid 'value' string\n");
+      }
+      cJSON_Delete(root);
+    }
   }
 
   if (response->code == REGISTRATION_ACK_CODE) {
@@ -158,7 +224,7 @@ static void client_chunk_handler(coap_message_t *response) {
   } else {
     LOG_WARN("[HACSystem] Registration failed with code: %d\n", response->code);
   }
-
+  
   LOG_INFO("[HACSystem] === RESPONSE HANDLER END ===\n");
 }
 
