@@ -4,6 +4,9 @@ import java.util.Locale;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 
 public class Main {
 
@@ -47,8 +50,15 @@ public class Main {
             System.out.println("[DEBUG] Response payload (length " + payload.length() + "): \"" + payload + "\"");
 
             if (!payload.isEmpty()) {
-                System.out.println("Response from " + resource + ": " + payload);
-                return response.getResponseText();
+                try {
+                    JsonObject jsonObject = JsonParser.parseString(payload).getAsJsonObject();
+                    String value = jsonObject.get("value").getAsString();
+                    System.out.println("Response from " + resource + ": " + value);
+                    return value;
+                } catch (JsonSyntaxException e) {
+                    System.out.println("Response from " + resource + ": " + payload);
+                    return payload;
+                }
             } else {
                 System.out.println("Empty response from " + resource + ", but code: " + codeName);
                 return "null payload";
@@ -66,14 +76,17 @@ public class Main {
             return;
         }
 
-        // IPv6 handling: add square brackets
+        JsonObject jsonPayload = new JsonObject();
+        jsonPayload.addProperty("value", payload);
+        String jsonString = jsonPayload.toString();
+
         String uri = "coap://" + nodeIp + ":5683/" + resource;
         System.out.println("[DEBUG] Built URI: " + uri);
-        System.out.println("[DEBUG] Payload to send (length " + payload.length() + "): \"" + payload + "\"");
+        System.out.println("[DEBUG] Payload to send (length " + jsonString.length() + "): \"" + jsonString + "\"");
 
         CoapClient client = new CoapClient(uri);
 
-        CoapResponse response = client.post(payload, MediaTypeRegistry.TEXT_PLAIN);
+        CoapResponse response = client.post(jsonString, MediaTypeRegistry.APPLICATION_JSON);
 
         if (response != null) {
             int code = response.getCode().value;
@@ -84,7 +97,13 @@ public class Main {
             System.out.println("[DEBUG] Response payload (length " + responsePayload.length() + "): \"" + responsePayload + "\"");
 
             if (!responsePayload.isEmpty()) {
-                System.out.println("Response from " + resource + ": " + responsePayload);
+                try {
+                    JsonObject jsonObject = JsonParser.parseString(responsePayload).getAsJsonObject();
+                    String value = jsonObject.get("value").getAsString();
+                    System.out.println("Response from " + resource + ": " + value);
+                } catch (JsonSyntaxException e) {
+                    System.out.println("Response from " + resource + ": " + responsePayload);
+                }
             } else {
                 System.out.println("Empty response from " + resource + ", but code: " + codeName);
             }
@@ -286,13 +305,11 @@ public class Main {
                 float min = Float.parseFloat(nuovaMin);
                 float max = Float.parseFloat(nuovaMax);
 
-                // Build payload in required format: "min,max" with comma
                 String payload = String.format(Locale.ITALY, "%.1f,%.1f", min, max);
 
                 System.out.println("Executing command: set_lim with payload:");
                 System.out.println(payload);
 
-                // Send POST to set_lim
                 sendCoapPostRequest("set_lim", payload);
 
             } catch (NumberFormatException e) {

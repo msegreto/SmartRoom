@@ -6,6 +6,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import db.Database;
+import org.json.JSONObject;
 
 public class ServiceResource extends CoapResource {
 
@@ -27,8 +28,9 @@ public class ServiceResource extends CoapResource {
             }
             
             if (resourceName == null || resourceName.trim().isEmpty()) {
-                exchange.respond(ResponseCode.BAD_REQUEST, 
-                    "Missing resource parameter. Use: GET /service?resource=<resource_name>");
+                JSONObject errorJson = new JSONObject();
+                errorJson.put("value", "Missing resource parameter. Use: GET /service?resource=<resource_name>");
+                exchange.respond(ResponseCode.BAD_REQUEST, errorJson.toString(), MediaTypeRegistry.APPLICATION_JSON);
                 return;
             }
             
@@ -37,8 +39,11 @@ public class ServiceResource extends CoapResource {
             if (resourceIP != null) {
                 String fullResourceURI = "coap://[" + resourceIP + "]:5683/";
                 
+                JSONObject responseJson = new JSONObject();
+                responseJson.put("value", fullResourceURI);
+
                 System.out.println("[ServiceResource] Found resource: " + fullResourceURI);
-                exchange.respond(ResponseCode.CONTENT, fullResourceURI, MediaTypeRegistry.TEXT_PLAIN);
+                exchange.respond(ResponseCode.CONTENT, responseJson.toString(), MediaTypeRegistry.APPLICATION_JSON);
                 System.out.println("[ServiceResource] Found " + resourceName + " at " + resourceIP);
             } else {
                 exchange.respond(ResponseCode.NOT_FOUND, "Resource not found: " + resourceName);

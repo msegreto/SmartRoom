@@ -5,6 +5,10 @@ import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+
 import db.LoggerSaver;
 
 public class Observer implements Runnable{
@@ -36,10 +40,16 @@ public class Observer implements Runnable{
                 String payload = responseText.trim();
                 
                 try {
-                    logger.saveLog(payload);
-                    System.out.println("[Observer] " + resourceURI + " → " + payload);
+                    JsonObject jsonObject = JsonParser.parseString(payload).getAsJsonObject();
+                    String value = jsonObject.get("value").getAsString();
+                    
+                    logger.saveLog(value);
+                    System.out.println("[Observer] " + resourceURI + " → value: " + value);
+                    
+                } catch (JsonSyntaxException e) {
+                    System.err.println("[Observer] Invalid JSON for " + resourceURI + ": " + payload);
                 } catch (Exception e) {
-                    System.err.println("[Observer] DB error for " + resourceURI + ": " + e.getMessage());
+                    System.err.println("[Observer] Error processing " + resourceURI + ": " + e.getMessage());
                 }
             }
             @Override
