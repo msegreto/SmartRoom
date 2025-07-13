@@ -122,10 +122,10 @@ void light_response_handler(coap_message_t *response) {
   // Attiva/disattiva il LED
   if (strcmp(val, "1") == 0) {
     LOG_INFO("[Light] LED ON (from JSON)\n");
-    leds_single_on(LEDS_YELLOW);
+    leds_on(LEDS_RED);
   } else {
     LOG_INFO("[Light] LED OFF (from JSON)\n");
-    leds_single_off(LEDS_YELLOW);
+    leds_off(LEDS_RED);
   }
 
   cJSON_Delete(root);
@@ -313,9 +313,8 @@ PROCESS_THREAD(light_actuator_process, ev, data) {
   LOG_INFO("Light Actuator ready\n");
   LOG_INFO("LED resource activated at /led\n");
   LOG_INFO("Waiting for CoAP requests...\n");
-
   leds_off(LEDS_RED);
-  leds_on(LEDS_GREEN);
+  leds_single_on(LEDS_YELLOW);
 
   while (1) {
     PROCESS_YIELD();
