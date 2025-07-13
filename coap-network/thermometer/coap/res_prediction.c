@@ -31,7 +31,7 @@ static void res_event_handler(void) {
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
 
-  char formatted[8]; 
+  char formatted[32]; 
   int int_part = (int)last_prediction;
   int decimal_part = (int)((last_prediction - int_part) * 100);
   if (decimal_part < 0) {
