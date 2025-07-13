@@ -42,7 +42,7 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response,
       cJSON *value = cJSON_GetObjectItemCaseSensitive(json, "value");
       if(cJSON_IsString(value) && value->valuestring != NULL) {
         // Accetta sia "1" che "ON"
-        if(strcmp(value->valuestring, "1") == 0 || strcasecmp(value->valuestring, "ON") == 0) {
+        if(strcmp(value->valuestring, "1") == 0 || strcmp(value->valuestring, "ON") == 0) {
           leds_on(LEDS_RED);
           status_str = "ON";
           LOG_INFO("LED turned ON\n");
