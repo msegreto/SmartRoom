@@ -58,19 +58,46 @@ void discovery_response_handler(coap_message_t *response, char *buffer, size_t b
     return;
   }
 
-  memcpy(buffer, chunk, len);
-  buffer[len] = '\0';
-  
-  
-  if (strstr(buffer, "not found") != NULL) {
-    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", buffer);
-    buffer[0] = '\0';  
+  // Copia il payload in una stringa terminata da \0
+  char json_payload[len + 1];
+  memcpy(json_payload, chunk, len);
+  json_payload[len] = '\0';
+
+  // Parsing JSON
+  cJSON *root = cJSON_Parse(json_payload);
+  if (!root) {
+    LOG_WARN("[DISCOVERY] Failed to parse JSON payload\n");
+    buffer[0] = '\0';
     return;
   }
 
-  // Stampa solo se la risposta è valida
-  print_hex(chunk, len);
-  LOG_INFO("[DISCOVERY] Payload (STRING): %s\n", buffer);
+  // Estrai il campo "value"
+  cJSON *value_item = cJSON_GetObjectItem(root, "value");
+  if (!value_item || !cJSON_IsString(value_item)) {
+    LOG_WARN("[DISCOVERY] JSON 'value' missing or not a string\n");
+    cJSON_Delete(root);
+    buffer[0] = '\0';
+    return;
+  }
+
+  const char *val = value_item->valuestring;
+
+  // Controlla contenuto
+  if (strstr(val, "not found") != NULL) {
+    LOG_WARN("[DISCOVERY] Resource not found in response: %s\n", val);
+    buffer[0] = '\0';
+    cJSON_Delete(root);
+    return;
+  }
+
+  // Copia il valore in buffer
+  strncpy(buffer, val, buffer_len - 1);
+  buffer[buffer_len - 1] = '\0';
+
+  // Log utile
+  LOG_INFO("[DISCOVERY] Parsed endpoint value: %s\n", buffer);
+
+  cJSON_Delete(root);
 }
 
 void discovery_response_handler_hac(coap_message_t *response) {
@@ -85,34 +112,55 @@ void hac_response_handler(coap_message_t *response) {
 
   const uint8_t *chunk;
   int len = coap_get_payload(response, &chunk);
-  if (len > 0) {
-    char buffer[64];
-    memcpy(buffer, chunk, len);
-    buffer[len] = '\0';
-    LOG_INFO("[HAC] Notification payload: %s\n", buffer);
+  if (len <= 0 || !chunk) {
+    LOG_WARN("[HAC] Empty payload\n");
+    return;
+  }
 
-    float value;
-    if (sscanf(buffer, "%f", &value) == 1) {
-      LOG_INFO("[HAC] Parsed value: %.2f°C\n", value);
-    }
+  // Copia payload in buffer terminato da \0
+  char json_payload[len + 1];
+  memcpy(json_payload, chunk, len);
+  json_payload[len] = '\0';
 
-    // Nuova logica: cambio trend in base al payload
-    if (strcmp(buffer, "cooling") == 0) {
+  // Parsing JSON
+  cJSON *root = cJSON_Parse(json_payload);
+  if (!root) {
+    LOG_WARN("[HAC] Failed to parse JSON payload\n");
+    return;
+  }
+
+  // Estrai il campo "value"
+  cJSON *value_item = cJSON_GetObjectItem(root, "value");
+  if (!value_item || !cJSON_IsString(value_item)) {
+    LOG_WARN("[HAC] JSON 'value' missing or not a string\n");
+    cJSON_Delete(root);
+    return;
+  }
+
+  const char *val = value_item->valuestring;
+  LOG_INFO("[HAC] Parsed value from JSON: %s\n", val);
+
+  // Se è un numero, loggalo come temperatura
+  float numeric;
+  if (sscanf(val, "%f", &numeric) == 1) {
+    LOG_INFO("[HAC] Parsed numeric value: %.2f°C\n", numeric);
+  }
+
+    // Valori semantici di trend
+    if (strcmp(val, "cooling") == 0) {
       set_temperature_trend(TREND_COOLING);
       LOG_INFO("[HAC] Set trend to COOLING\n");
-    } else if (strcmp(buffer, "heating") == 0) {
+    } else if (strcmp(val, "heating") == 0) {
       set_temperature_trend(TREND_HEATING);
       LOG_INFO("[HAC] Set trend to HEATING\n");
-    } else if (strcmp(buffer, "none") == 0) {
+    } else if (strcmp(val, "none") == 0) {
       set_temperature_trend(TREND_NONE);
       LOG_INFO("[HAC] Set trend to NONE\n");
-    }else {
-      LOG_WARN("[HAC] Unknown trend value: %s\n", buffer);
+    } else {
+      LOG_WARN("[HAC] Unknown trend value: %s\n", val);
     }
 
-  } else {
-    LOG_WARN("[HAC] Empty payload\n");
-  }
+  cJSON_Delete(root);
 }
 
 void hac_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
@@ -135,10 +183,23 @@ static void client_chunk_handler(coap_message_t *response) {
   if (len <= 0 || chunk == NULL) {
     LOG_WARN("[Thermometer] Empty or invalid payload received (len=%d)\n", len);
   } else {
-    char payload[len + 1];
-    memcpy(payload, chunk, len);
-    payload[len] = '\0';
-    LOG_INFO("[Thermometer] Response payload: '%s'\n", payload);
+    char json_payload[len + 1];
+    memcpy(json_payload, chunk, len);
+    json_payload[len] = '\0';
+
+    cJSON *root = cJSON_Parse(json_payload);
+    if (!root) {
+      LOG_WARN("[Humidity] Failed to parse JSON: %s\n", json_payload);
+    } else {
+      cJSON *value_item = cJSON_GetObjectItem(root, "value");
+      if (value_item && cJSON_IsString(value_item)) {
+        const char *val = value_item->valuestring;
+        LOG_INFO("[Humidity] Response value: %s\n", val);
+      } else {
+        LOG_WARN("[Humidity] JSON missing valid 'value' string\n");
+      }
+      cJSON_Delete(root);
+    }
   }
 
   if (response->code == REGISTRATION_ACK_CODE) {

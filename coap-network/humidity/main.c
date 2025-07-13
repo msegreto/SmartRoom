@@ -28,9 +28,6 @@ extern coap_resource_t res_prediction;
 extern coap_resource_t res_on;
 extern coap_resource_t res_off;
 
-//void trigger_prediction_event();
-//void trigger_latest_event();
-
 static int registered = 0;
 
 static void client_chunk_handler(coap_message_t *response) {
@@ -38,7 +35,7 @@ static void client_chunk_handler(coap_message_t *response) {
   
   const uint8_t *chunk;
   if (response == NULL) {
-    LOG_ERR("[Humidity] Registration timed out - no response received\n");
+    LOG_ERR("[Humidity] Registration timeout\n");
     return;
   }
   
@@ -48,11 +45,25 @@ static void client_chunk_handler(coap_message_t *response) {
   if (len <= 0 || chunk == NULL) {
     LOG_WARN("[Humidity] Empty or invalid payload received (len=%d)\n", len);
   } else {
-    char payload[len + 1];
-    memcpy(payload, chunk, len);
-    payload[len] = '\0';
-    LOG_INFO("[Humidity] Response payload: '%s'\n", payload);
+    char json_payload[len + 1];
+    memcpy(json_payload, chunk, len);
+    json_payload[len] = '\0';
+
+    cJSON *root = cJSON_Parse(json_payload);
+    if (!root) {
+      LOG_WARN("[Humidity] Failed to parse JSON: %s\n", json_payload);
+    } else {
+      cJSON *value_item = cJSON_GetObjectItem(root, "value");
+      if (value_item && cJSON_IsString(value_item)) {
+        const char *val = value_item->valuestring;
+        LOG_INFO("[Humidity] Response value: %s\n", val);
+      } else {
+        LOG_WARN("[Humidity] JSON missing valid 'value' string\n");
+      }
+      cJSON_Delete(root);
+    }
   }
+
 
   if (response->code == REGISTRATION_ACK_CODE) {
     registered = 1;

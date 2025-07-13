@@ -1,5 +1,5 @@
-
 #include "res_prediction.h"
+#include "../../cJSON-master/cJSON.h"
 
 #include "sys/log.h"
 #define LOG_MODULE "res_prediction"
@@ -29,22 +29,27 @@ static void res_event_handler(void) {
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-
-  // Conversion to string with two decimal places
-  int int_part = (int)last_prediction;
-  int decimal_part = (int)((last_prediction - int_part) * 100);
-  if (decimal_part < 0) {
-    decimal_part = -decimal_part;
+  cJSON *root = cJSON_CreateObject();
+  if (!root) {
+    LOG_ERR("[Prediction] Failed to create JSON object\n");
+    coap_set_payload(response, NULL, 0);
+    return;
   }
 
-  int len = snprintf((char *)buffer, preferred_size, "%d,%02d", int_part, decimal_part);
+  cJSON_AddNumberToObject(root, "value", last_prediction);
 
-  if (len > 0 && len < preferred_size) {
-    LOG_INFO("[Latest] Payload: %s (len=%d)\n", buffer, len);
-    coap_set_header_content_format(response, TEXT_PLAIN);
+  char *json_str = cJSON_PrintUnformatted(root);
+  cJSON_Delete(root);
+
+  if (json_str != NULL) {
+    size_t len = strlen(json_str);
+    memcpy(buffer, json_str, len);
     coap_set_payload(response, buffer, len);
+    coap_set_status_code(response, CONTENT_2_05);
+    coap_set_header_content_format(response, APPLICATION_JSON);
+    LOG_INFO("[Prediction] JSON response: %s\n", json_str);
   } else {
-    LOG_WARN("[Latest] Formatting failed or buffer overflow (len=%d)\n", len);
+    LOG_ERR("[Prediction] Failed to print JSON\n");
     coap_set_payload(response, NULL, 0);
   }
 

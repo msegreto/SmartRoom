@@ -25,6 +25,8 @@ extern coap_resource_t res_light;
 static int registered = 0;
 
 static void client_chunk_handler(coap_message_t *response) {
+  LOG_INFO("[Light] === RESPONSE HANDLER CALLED ===\n");
+
   const uint8_t *chunk;
   if (response == NULL) {
     LOG_ERR("[Light] Registration timeout\n");
@@ -60,6 +62,8 @@ static void client_chunk_handler(coap_message_t *response) {
   } else {
     LOG_WARN("[Light] Registration failed: %d\n", response->code);
   }
+
+  LOG_INFO("[Light] === RESPONSE HANDLER END ===\n");
 }
 
 PROCESS_THREAD(light_sensor_main_process, ev, data) {

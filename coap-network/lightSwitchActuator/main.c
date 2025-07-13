@@ -131,7 +131,6 @@ void light_response_handler(coap_message_t *response) {
   cJSON_Delete(root);
 }
 
-
 void light_notification_handler(struct coap_observee_s *obs, void *notification, coap_notification_flag_t flag) {
   LOG_INFO("[Light] Notification received\n");
   if (notification) light_response_handler((coap_message_t *)notification);
@@ -161,9 +160,9 @@ static void client_chunk_handler(coap_message_t *response) {
       cJSON *value_item = cJSON_GetObjectItem(root, "value");
       if (value_item && cJSON_IsString(value_item)) {
         const char *val = value_item->valuestring;
-        LOG_INFO("[LightSystemAct] Parsed 'value' from response: '%s'\n", val);
+        LOG_INFO("[LightSystemAct] Response value: '%s'\n", val);
       } else {
-        LOG_WARN("[LightSystemAct] JSON does not contain a valid 'value' string\n");
+        LOG_WARN("[LightSystemAct] JSON missing 'value' string\n");
       }
       cJSON_Delete(root);
     }
@@ -180,7 +179,6 @@ static void client_chunk_handler(coap_message_t *response) {
 
   LOG_INFO("[LightSystemAct] === RESPONSE HANDLER END ===\n");
 }
-
 
 PROCESS_THREAD(light_actuator_process, ev, data) {
   static struct etimer timer, init_timer;
