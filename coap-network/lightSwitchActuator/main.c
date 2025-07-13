@@ -122,10 +122,10 @@ void light_response_handler(coap_message_t *response) {
   // Attiva/disattiva il LED
   if (strcmp(val, "1") == 0) {
     LOG_INFO("[Light] LED ON (from JSON)\n");
-    leds_single_on(LEDS_YELLOW);
+    leds_single_on(LEDS_GREEN);
   } else {
     LOG_INFO("[Light] LED OFF (from JSON)\n");
-    leds_single_off(LEDS_YELLOW);
+    leds_single_off(LEDS_GREEN);
   }
 
   cJSON_Delete(root);

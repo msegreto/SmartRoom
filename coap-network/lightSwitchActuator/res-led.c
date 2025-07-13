@@ -43,26 +43,26 @@ static void res_post_handler(coap_message_t *request, coap_message_t *response,
       if(cJSON_IsString(value) && value->valuestring != NULL) {
         // Accetta sia "1" che "ON"
         if(strcmp(value->valuestring, "1") == 0 || strcasecmp(value->valuestring, "ON") == 0) {
-          leds_single_on(LEDS_YELLOW);
+          leds_single_on(LEDS_GREEN);
           status_str = "ON";
           LOG_INFO("LED turned ON\n");
         } else {
-          leds_single_off(LEDS_YELLOW);
+          leds_single_off(LEDS_GREEN);
           status_str = "OFF";
           LOG_INFO("LED turned OFF (via JSON value)\n");
         }
       } else {
         LOG_WARN("JSON 'value' field missing or invalid, turning LED OFF\n");
-        leds_single_off(LEDS_YELLOW);
+        leds_single_off(LEDS_GREEN);
       }
       cJSON_Delete(json);
     } else {
       LOG_WARN("Invalid JSON format, turning LED OFF\n");
-      leds_single_off(LEDS_YELLOW);
+      leds_single_off(LEDS_GREEN);
     }
   } else {
     LOG_WARN("No payload received, turning LED OFF\n");
-    leds_single_off(LEDS_YELLOW);
+    leds_single_off(LEDS_GREEN);
   }
 
   // === JSON response ===
@@ -89,7 +89,7 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response,
 {
   LOG_INFO("=== LED STATUS REQUEST RECEIVED ===\n");
 
-  const char *status_str = (leds_get() & LEDS_YELLOW) ? "ON" : "OFF";
+  const char *status_str = (leds_get() & LEDS_GREEN) ? "ON" : "OFF";
 
   cJSON *root = cJSON_CreateObject();
   cJSON_AddStringToObject(root, "value", status_str);
