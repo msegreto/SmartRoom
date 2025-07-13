@@ -30,7 +30,8 @@ static void res_event_handler(void) {
 
 static void res_get_handler(coap_message_t *request, coap_message_t *response,
                             uint8_t *buffer, uint16_t preferred_size, int32_t *offset) {
-  char formatted[8];
+
+  char formatted[8]; 
   int int_part = (int)last_prediction;
   int decimal_part = (int)((last_prediction - int_part) * 100);
   if (decimal_part < 0) {
@@ -39,6 +40,7 @@ static void res_get_handler(coap_message_t *request, coap_message_t *response,
 
   snprintf(formatted, sizeof(formatted), "%d,%02d", int_part, decimal_part);
 
+  // Creazione oggetto JSON
   cJSON *root = cJSON_CreateObject();
   if (!root) {
     LOG_ERR("[Prediction] Failed to create JSON object\n");
